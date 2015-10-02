@@ -40,6 +40,7 @@ CurrentDate=$(date)
 	#--- Array Function End   ---#
 
 #--- Main loop ---#
+	umask 000
 	# Part 1: Execute ARP-SCAN and detect devices
 	if [ "$Log" == "High" ]  ; then
 		echo "$CurrentDate execute arp-scan" >> $DataDir/nwd.log
