@@ -39,29 +39,21 @@ CurrentDate=$(date)
 	}
 	#--- Array Function End   ---#
 
-#--- Startup delay if started in loop ---#
-#sleep 60      
-
 #--- Main loop ---#
-# remove 5 comments markers #
 	# Part 1: Execute ARP-SCAN and detect devices
 	if [ "$Log" == "High" ]  ; then
 		echo "$CurrentDate execute arp-scan" >> $DataDir/nwd.log
 	fi
 	
-	# Get list of available network devices in local file
-	sudo arp-scan --localnet | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| sort > $DataDir/arp-scan.raw
-
 	# Check if Domoticz is online to continue, else suspend
-	curl -s "http://$DomoIP:$DomoPort/json.htm?type=command&param=getSunRiseSet" | grep "\"status\" : \"OK\""
-	if [ $? -eq 0 ] ; then
+	DomoticzStatus=$(curl -s "http://$DomoIP:$DomoPort/json.htm?type=command&param=getSunRiseSet" | grep "\"status\" : \"OK\"")
+	if [ -z "$DomoticzStatus" ]
+	then
+		echo "Domoticz is offline. Retry later"
+	else
+		# Get list of available network devices in local file
+		sudo arp-scan --localnet | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| sort > $DataDir/arp-scan.raw
 
-
-		#remove	cat $DataDir/arp-scan.raw | grep $NetworkTopIP | grep -v "DUP"
-		#remove	# Get number of devices from local file
-		#remove	DeviceCount="$(cat $DataDir/arp-scan.raw | grep "packets" | cut -d" " -f1)"
-		#remove	echo "Number of devices detected: " $DeviceCount
-	
 		# Create seperate files to fill arrays
 		cat $DataDir/arp-scan.raw | grep $NetworkTopIP | cut -f2 > $DataDir/arp-scan.mac
 		cat $DataDir/arp-scan.raw | grep $NetworkTopIP | cut -f3 > $DataDir/arp-scan.man
@@ -120,18 +112,25 @@ CurrentDate=$(date)
 				DeviceMan=""
 				DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
 
-				# Create new Domoticz Hardware sensor
-				curl -s "$DomoIP:$DomoPort/json.htm?type=createvirtualsensor&idx=$HardwareIDX&sensortype=6"
-				# Get IDX of the newly created sensor
-				NewDevIDX=""
-				NewDevIDX="$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all&used=false&order=Name" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')"
-				if [ "$Log" == "High" ] || [ "$Log" == "Low" ] ; then
-					echo "###########################################################################################" >> $DataDir/nwd.log
-					echo "$CurrentDate New device added: ${ArpMAC[$dev]}	$NewDevIDX	${ArpMAN[$dev]} by $DeviceMan " >> $DataDir/nwd.log
+				#Check for double entries using log
+				MacLoggedBefore=$(cat $DataDir/nwd.log | grep -m 1 ${ArpMAC[$dev]})
+				if [ -z $MacLoggedBefore ]
+				then
+					# Create new Domoticz Hardware sensor
+					curl -s "$DomoIP:$DomoPort/json.htm?type=createvirtualsensor&idx=$HardwareIDX&sensortype=6"
+					# Get IDX of the newly created sensor
+					NewDevIDX=""
+					NewDevIDX="$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all&used=false&order=Name" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')"
+					if [ "$Log" == "High" ] || [ "$Log" == "Low" ] ; then
+						echo "###########################################################################################" >> $DataDir/nwd.log
+						echo "$CurrentDate New device added: ${ArpMAC[$dev]}	$NewDevIDX	${ArpMAN[$dev]} by $DeviceMan " >> $DataDir/nwd.log
+					fi
+					echo "$NewDevIDX	${ArpMAC[$dev]}	0	--- NEW DEVICE by Manufacturer $DeviceMan ---	" >> $DataDir/arp-table.dom
+					# switch on NewDeviceFound notifier in Domoticz:
+					curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevicesFoundIDX&switchcmd=On"
+				else
+					echo "New MAC address ignored. Already logged nwd.log"
 				fi
-				echo "$NewDevIDX	${ArpMAC[$dev]}	0	--- NEW DEVICE by Manufacturer $DeviceMan ---	" >> $DataDir/arp-table.dom
-				# switch on NewDeviceFound notifier in Domoticz:
-				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevicesFoundIDX&switchcmd=On"
 			# end of 'does device exist in arp-table.dom'
 			fi 
 		# continue with next device of Arp-scan
