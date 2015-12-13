@@ -53,7 +53,13 @@ CurrentDate=$(date)
 		echo "Domoticz is offline. Retry later"
 	else
 		# Get list of available network devices in local file
-		sudo arp-scan --localnet | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| sort > $DataDir/arp-scan.raw
+		sudo arp-scan --localnet | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| sort > $DataDir/arp-scan.lst
+		# intermediate is used to keep content of arp-scan.raw highly available	
+		ArpLines=$(wc -l $DataDir/arp-scan.lst)
+		if expr "$ArpLines" '>=' "0"
+		then
+			cp $DataDir/arp-scan.lst $DataDir/arp-scan.raw
+		fi
 
 		# Create seperate files to fill arrays
 		cat $DataDir/arp-scan.raw | grep $NetworkTopIP | cut -f2 > $DataDir/arp-scan.mac
@@ -214,9 +220,9 @@ CurrentDate=$(date)
 					RetryCounter=0
 				else
 					echo "Device might be turned OFF"
-					if [ "${DomCnt[$idx]}" == "$RetryAttempts" ]; then
+					if [ "${DomCnt[$idx]}" > "$RetryAttempts" ]; then
 						echo "Device is reallly off"
-						# Switch in Domoticz OFGF
+						# Switch in Domoticz OFF
 						curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=Off"
 						#reset retrycounter
 						RetryCounter=0
