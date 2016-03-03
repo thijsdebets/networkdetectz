@@ -1,7 +1,27 @@
 #!/bin/bash
 
 #run from crontab, dont use sudo crontab
-# 
+#
+
+#These are notes, SQLite is not actove in this scipt
+#for reading sqlite3 nwd.db use:
+# Getting my data
+#LIST=`sqlite3 dbname.db "SELECT * FROM data WHERE 1"`;
+
+# For each row
+#for ROW in $LIST; do
+#
+#	# Parsing data (sqlite3 returns a pipe separated string)
+#	Id=`echo $ROW | awk '{split($0,a,"|"); print a[1]}'`
+#	Name=`echo $ROW | awk '{split($0,a,"|"); print a[2]}'`
+#	Value=`echo $ROW | awk '{split($0,a,"|"); print a[3]}'`
+#	
+#	# Printing my data
+#	echo -e "\e[4m$Id\e[m) "$Name" -> "$Value;
+#	
+#done
+
+
 
 #--- Configuration ---#
 DomoIP='127.0.0.1'		# Domoticz IP Address
@@ -9,7 +29,7 @@ DomoPort='8080'			# Domoticz Port
 HardwareIDX=14
 NewDevicesFoundIDX=111
 InstallDir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-RetryAttempts=4			# retry 5 times (5 minutes)
+RetryAttempts=3			# 3 = retry 4 times (5 minutes)
 Log="Low"			# High: Almost everything (huge logfile), Low: New devices and errors, Error: Only errors, Not: Nothing
 
 
@@ -28,8 +48,8 @@ CurrentDate=$(date)
 
 	#--- Array Function Begin ---#
 	# Read the file in parameter and fill the array named "array"
-	array=()
 	getArray() {
+	    array=()
 	    i=0
 	    while read line # Read a line
 	    do
@@ -71,22 +91,22 @@ CurrentDate=$(date)
 		ArpMAC=()
 		getArray "$DataDir/arp-scan.mac"
 		ArpMAC=("${array[@]}")
-	
+
 		ArpMAN=()
 		getArray "$DataDir/arp-scan.man"
 		ArpMAN=("${array[@]}")
-	
+
 		#	and just for info the ip-address
 		ArpIP=()
 		getArray "$DataDir/arp-scan.ip"
 		ArpIP=("${array[@]}")
 
-	
+
 		# check for new devices and add them to Domoticz and Internal table if necessary
 		#	dev=0	
 		#	for i in "${ArpMAC[@]}"
 		NewDevices=""
-	
+
 		echo "lets start"
 		# determine per device in the arp-scan if it exists. If it doesn't add it to Domoticz
 		for (( dev = 0; dev < ${#ArpMAC[@]}; dev++ ))
@@ -109,20 +129,21 @@ CurrentDate=$(date)
 					echo "$CurrentDate Not found: ${ArpMAC[$dev]} - ${ArpMAN[$dev]}" >> $DataDir/nwd.log
 					cat $DataDir/arp-table.dom >> $DataDir/nwd.log
 				fi
-				# Get the latest version of the MAC -> Manufacturer mapping table
-				wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
-
-				MACIdentification=${ArpMAC[$dev]} 
-				MACIdentification=${MACIdentification:0:8} 
-				MACIdentification=`echo $MACIdentification | tr '[:lower:]' '[:upper:]'` 
-				MACIdentification=`echo $MACIdentification | tr ":" "-"` 
-				DeviceMan=""
-				DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
-
 				#Check for double entries using log
-				MacLoggedBefore=$(cat $DataDir/nwd.log | grep -m 1 ${ArpMAC[$dev]})
+				MacLoggedBefore=$( cat $DataDir/nwd.log | grep -m 1 ${ArpMAC[$dev]} )
 				if [ -z $MacLoggedBefore ]
 				then
+
+					# Get the latest version of the MAC -> Manufacturer mapping table
+					wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
+
+					MACIdentification=${ArpMAC[$dev]}
+					MACIdentification=${MACIdentification:0:8}
+					MACIdentification=`echo $MACIdentification | tr '[:lower:]' '[:upper:]'`
+					MACIdentification=`echo $MACIdentification | tr ":" "-"`
+					DeviceMan=""
+					DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
+
 					# Create new Domoticz Hardware sensor
 					curl -s "$DomoIP:$DomoPort/json.htm?type=createvirtualsensor&idx=$HardwareIDX&sensortype=6"
 					# Get IDX of the newly created sensor
@@ -132,7 +153,11 @@ CurrentDate=$(date)
 						echo "###########################################################################################" >> $DataDir/nwd.log
 						echo "$CurrentDate New device added: ${ArpMAC[$dev]}	$NewDevIDX	${ArpMAN[$dev]} by $DeviceMan " >> $DataDir/nwd.log
 					fi
-					echo "$NewDevIDX	${ArpMAC[$dev]}	0	--- NEW DEVICE by Manufacturer $DeviceMan ---	" >> $DataDir/arp-table.dom
+					echo "$NewDevIDX	${ArpMAC[$dev]}	0	$DeviceMan	" >> $DataDir/arp-table.dom
+#					sqlite3 nwd.db "INSERT INTO device (mac, name, manufacture) VALUES ('${ArpMAC[$dev]}','--- NEW DEVICE by Manufacturer $DeviceMan ---', '$DeviceMan' )";
+#					sqlite3 nwd.db "INSERT INTO idx (idx, status, ip) VALUES ($NewDevIDX,'ON', '${ArpIP[$dev]}')";
+#					sqlite3 nwd.db "INSERT INTO link (idx, mac) VALUES ($NewDevIDX,'${ArpMAC[$dev]}')";
+
 					# switch on NewDeviceFound notifier in Domoticz:
 					curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevicesFoundIDX&switchcmd=On"
 				else
@@ -174,25 +199,35 @@ CurrentDate=$(date)
 
 
 		# For every device in the arp-table.dom see if there is an entry in the arp-scan. Switch Domoticz state if necessery
+#new generic method
+		curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX" | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"' > $DataDir/DomoticzStatus.dat
+		cat $DataDir/DomoticzStatus.dat | grep -A 1 '"Data" : "On"' | grep 'idx' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.on
+		cat $DataDir/DomoticzStatus.dat | grep -A 1 '"Data" : "Off"' | grep 'idx' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
+
 		for (( idx = 0; idx < ${#DomMAC[@]}; idx++ ))
+#		for (( idx = 0; idx < ${#DomMAC[2]}; idx++ ))
 		do
 			# get device status and name from Domoticz
+
+
+
 			RetryCounter=${DomCnt[$idx]}
-			
-			DeviceName=[$idx]=""
-			DeviceName[$idx]=$(curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&rid=${DomIDX[$idx]}" | grep -m 1 "\"Name\"" | cut -d"\"" -f4)
-			if [ "${DeviceName[$idx]}" == "" ] || [ "${DeviceName[$idx]}" == "Unknown" ]; then
+
+#			DeviceName[$idx]=""
+#			DeviceName[$idx]=$(curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&rid=${DomIDX[$idx]}" | grep -m 1 "\"Name\"" | cut -d"\"" -f4)
+#			if [ "${DeviceName[$idx]}" == "" ] || [ "${DeviceName[$idx]}" == "Unknown" ]; then
 				DeviceName[$idx]=${DomName[$idx]}
-			fi
+#			fi
 
 			# Check if the device is ON in Domoticz
-			curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&rid=${DomIDX[$idx]}" | grep -m 1 "Status" | grep "On" > /dev/null
+			grep ${DomIDX[$idx]} $DataDir/DomoticzStatus.on
+#			curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&rid=${DomIDX[$idx]}" | grep -m 1 "Status" | grep "On" > /dev/null
 			if [ $? -eq 0 ] ; then
 				DeviceDomStatus="On"
 			else
 				DeviceDomStatus="Off"
 			fi
-			
+
 			if [ "$Log" == "High" ] ; then
 				echo "$CurrentDate Status of ${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) in Domoticz is $DeviceDomStatus" >> $DataDir/nwd.log
 			fi
@@ -201,7 +236,6 @@ CurrentDate=$(date)
 			# get ip address for device from arp-scan
 			DeviceIP=""
 			DeviceIP=$(cat $DataDir/arp-scan.raw | grep -m 1 ${DomMAC[$idx]} | cut -f1)
-			
 			if expr "$DeviceIP" '>' 0
 			then
 				DeviceDetectStatus="On"
@@ -210,25 +244,34 @@ CurrentDate=$(date)
 				else
 					echo "Device is turned ON"
 					# Switch in Domoticz ON
+#					sqlite3 nwd.db "update idx set status = 'ON' , statusdate = CURRENT_TIMESTAMP , ip = '$DeviceIP' where idx.idx = '${DomIDX[$idx]}' "; 
+#					sqlite3 nwd.db "update idx set status = 'ON', statusdate = CURRENT_TIMESTAMP, ip = '$DeviceIP' where idx = ${DomIDX[$idx]}";
 					curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=On"
 				fi
 				RetryCounter=0
 			else
 				DeviceDetectStatus="Off"
+
 				if [ "$DeviceDomStatus" == "$DeviceDetectStatus" ]; then
 					echo "Device is already Off"
-					RetryCounter=0
+#					RetryCounter=0
 				else
 					echo "Device might be turned OFF"
-					if [ "${DomCnt[$idx]}" > "$RetryAttempts" ]; then
+					if expr "${DomCnt[$idx]}" '>' "$RetryAttempts" 
+					then
 						echo "Device is reallly off"
 						# Switch in Domoticz OFF
+#						sqlite3 nwd.db "update idx set status = 'OFF' where idx.idx = '${DomIDX[$idx]}' "; 
+
+#						sqlite3 nwd.db "update idx set status = 'OFF', statusdate = CURRENT_TIMESTAMP, ip = '$DeviceIP' where idx = ${DomIDX[$idx]}" ;
 						curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=Off"
 						#reset retrycounter
-						RetryCounter=0
+#						RetryCounter=0
 					else
 						echo "Will retry later"
 						RetryCounter=$((RetryCounter+1))
+#						sqlite3 nwd.db "update idx set status = '$RetryCounter' where idx.idx = '${DomIDX[$idx]}' "; 
+
 					fi
 				fi
 			# End of processing based on presence of IP in ARP-SCAN 
@@ -254,7 +297,7 @@ CurrentDate=$(date)
 				echo "${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $DataDir/arp-table.tmp
 			#end of rebuilding arp-table.tmp
 			fi
-			
+		
 		# done checking and switching per device 
 		done
 
@@ -267,7 +310,7 @@ CurrentDate=$(date)
 			cat $DataDir/arp-table.dom >> $DataDir/nwd.log
 		fi
 
-		# cleanup result in from arp-table.tmp to arp-table.dom
+		# cleanup result from arp-table.tmp to arp-table.dom
 		# intermediate .tmp is used to keep content of arp-table.dom highly available	
 		TmpLines=$(wc -l $DataDir/arp-table.tmp | cut -d" " -f1)
 		DomLines=$(wc -l $DataDir/arp-table.dom | cut -d" " -f1)
