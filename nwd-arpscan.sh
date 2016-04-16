@@ -1,37 +1,17 @@
 #!/bin/bash
 
-#run from crontab, dont use sudo crontab
-#
+#install arp-scan:
+#sudo apt-get install arp-scan
 
-#These are notes, SQLite is not actove in this scipt
-#for reading sqlite3 nwd.db use:
-# Getting my data
-#LIST=`sqlite3 dbname.db "SELECT * FROM data WHERE 1"`;
-
-# For each row
-#for ROW in $LIST; do
-#
-#	# Parsing data (sqlite3 returns a pipe separated string)
-#	Id=`echo $ROW | awk '{split($0,a,"|"); print a[1]}'`
-#	Name=`echo $ROW | awk '{split($0,a,"|"); print a[2]}'`
-#	Value=`echo $ROW | awk '{split($0,a,"|"); print a[3]}'`
-#	
-#	# Printing my data
-#	echo -e "\e[4m$Id\e[m) "$Name" -> "$Value;
-#	
-#done
-
-
+#run from crontab, dont use sudo crontab:
+#crontab -e
+#*/1 * * * * /home/pi/domoticz/scripts/arp-detect.sh >> /dev/null 2>&1
 
 #--- Configuration ---#
+InstallDir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 DomoIP='127.0.0.1'		# Domoticz IP Address
 DomoPort='8080'			# Domoticz Port
-HardwareIDX=14
-NewDevicesFoundIDX=111
-InstallDir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-RetryAttempts=3			# 3 = retry 4 times (5 minutes)
-Log="Low"			# High: Almost everything (huge logfile), Low: New devices and errors, Error: Only errors, Not: Nothing
-
+source $InstallDir/nwd-config
 
 # not used:	curl -s "http://$DOMO_USER:$DOMO_PASS@$DomoIP:$DomoPort/json.htm?...
 # used: 	curl -s "http://$DomoIP:$DomoPort/json.htm?...
@@ -40,7 +20,6 @@ Log="Low"			# High: Almost everything (huge logfile), Low: New devices and error
 #--- Initiation ---#
 DataDir="$InstallDir/data"
 LoopSleep=30
-NetworkTopIP="192"
 CurrentDate=$(date)
 
 
@@ -246,7 +225,8 @@ CurrentDate=$(date)
 					# Switch in Domoticz ON
 #					sqlite3 nwd.db "update idx set status = 'ON' , statusdate = CURRENT_TIMESTAMP , ip = '$DeviceIP' where idx.idx = '${DomIDX[$idx]}' "; 
 #					sqlite3 nwd.db "update idx set status = 'ON', statusdate = CURRENT_TIMESTAMP, ip = '$DeviceIP' where idx = ${DomIDX[$idx]}";
-					curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=On"
+#					echo "curl -s -i -H _Accept: application/json_ _http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=On&passcode=$DomoPIN_"
+					curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=On&passcode=$DomoPIN"
 				fi
 				RetryCounter=0
 			else
@@ -264,7 +244,7 @@ CurrentDate=$(date)
 #						sqlite3 nwd.db "update idx set status = 'OFF' where idx.idx = '${DomIDX[$idx]}' "; 
 
 #						sqlite3 nwd.db "update idx set status = 'OFF', statusdate = CURRENT_TIMESTAMP, ip = '$DeviceIP' where idx = ${DomIDX[$idx]}" ;
-						curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=Off"
+						curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=Off&passcode=$DomoPIN"
 						#reset retrycounter
 #						RetryCounter=0
 					else
