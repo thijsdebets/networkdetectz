@@ -52,7 +52,7 @@ CurrentDate=$(date)
 		echo "Domoticz is offline. Retry later"
 	else
 		# Get list of available network devices in local file
-		sudo arp-scan --localnet | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| sort > $DataDir/arp-scan.lst
+		sudo arp-scan --localnet | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
 		# intermediate is used to keep content of arp-scan.raw highly available	
 		ArpLines=$(wc -l $DataDir/arp-scan.lst)
 		if expr "$ArpLines" '>=' "0"

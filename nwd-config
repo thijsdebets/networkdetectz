@@ -1,8 +1,8 @@
 #Configuration file for Domoticz NetworkDetectz
 
 DomoPIN=''
-HardwareIDX=99
-NewDevicesFoundIDX=999
+HardwareIDX=14
+NewDevicesFoundIDX=111
 RetryAttempts=1                 # 3 = retry 4 times (5 minutes), 1 = retry 2 = 3 minutes
 Log="Low"                       # High: Almost everything (huge logfile), Low: New devices and errors, Error: Only errors, Not: Nothing
 NetworkTopIP="192"		# used to filet the relevant items from arpscan results
