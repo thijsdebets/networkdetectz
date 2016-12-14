@@ -11,4 +11,7 @@ Instruct="cp $DataDir/arp-table.dom $DataDir/arp-table.$CurrentDate.bak"
 echo $Instruct
 $Instruct
 
+# clean up old backups
+find $DataDir/*.bak -mtime +90 -type f -delete
+
 
