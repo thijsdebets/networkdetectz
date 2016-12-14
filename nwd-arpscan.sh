@@ -7,6 +7,10 @@
 #crontab -e
 #*/1 * * * * /home/pi/domoticz/scripts/arp-detect.sh >> /dev/null 2>&1
 
+#Configuration file for Domoticz NetworkDetectz
+
+
+
 #--- Configuration ---#
 InstallDir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 DomoIP='127.0.0.1'		# Domoticz IP Address
@@ -122,12 +126,14 @@ CurrentDate=$(date)
 					MACIdentification=`echo $MACIdentification | tr ":" "-"`
 					DeviceMan=""
 					DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
+					DeviceURLName=`echo $DeviceMan | tr "," "." | tr " " "_"`  
 
 					# Create new Domoticz Hardware sensor
-					curl -s "$DomoIP:$DomoPort/json.htm?type=createvirtualsensor&idx=$HardwareIDX&sensortype=6"
+					curl -G "$DomoIP:$DomoPort/json.htm" --data "type=createvirtualsensor" --data "idx=$Hardware" --data-urlencode "sensorname=New Device By $DeviceURLName"  --data "sensortype=6"
+					#curl -s "$DomoIP:$DomoPort/json.htm?type=createvirtualsensor&idx=$Hardware&sensorname=NewDeviceBy%20$DeviceURLName&sensortype=6" 
 					# Get IDX of the newly created sensor
 					NewDevIDX=""
-					NewDevIDX="$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all&used=false&order=Name" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')"
+					NewDevIDX="$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')"
 					if [ "$Log" == "High" ] || [ "$Log" == "Low" ] ; then
 						echo "###########################################################################################" >> $DataDir/nwd.log
 						echo "$CurrentDate New device added: ${ArpMAC[$dev]}	$NewDevIDX	${ArpMAN[$dev]} by $DeviceMan " >> $DataDir/nwd.log
@@ -302,6 +308,8 @@ CurrentDate=$(date)
 
 
 	# end of 'if domoticz is available'
+
 	fi
 
 # End of NetWorkDetect-ARPSCAN
+

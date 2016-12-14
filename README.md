@@ -14,13 +14,38 @@ At last for every mac address in arp-table.dom, it is checked if there is a ip-a
 The device state is requested from Domoticz. On state change, Domoticz is updated.
 
 #Setup
-install arp-scan:
+->install arp-scan:
 >sudo apt-get install arp-scan
-at arp-scan to crontab:
+
+->Create a hardware or type Dummy, register the IDX in nwd-config
+HardwareIDX=14
+->Create a Hardware switch for NewDevicedFound and add the IDX in nwd-config
+NewDevicesFoundIDX=111
+
+-> set other configuration items in nwd-config:
+DomoPIN='1234'
+RetryAttempts=1                 # 3 = retry 4 times (5 minutes), 1 = retry 2 = 3 minutes
+Log="Low"                       # High: Almost everything (huge logfile), Low: New devices and errors, Error: Only errors, Not: Nothing
+NetworkTopIP="192"              # used to filet the relevant items from arpscan results
+
+
+
+
+->create arp-detect.sh in /home/pi/domoticz/scripts with following lines:
+
+#!/bin/bash
+
+#run from crontab, dont use sudo crontab
+/home/pi/domoticz/networkdetectz/nwd-arpscan.sh
+cp /home/pi/domoticz/networkdetectz/data/arp-scan.raw /home/pi/domoticz/scripts/arp-temp
+cp /home/pi/domoticz/networkdetectz/data/arp-table.dom /home/pi/domoticz/www/devices.txt
+cat /home/pi/domoticz/networkdetectz/data/nwd.log >> /home/pi/domoticz/www/devices.txt
+
+
+-> make file executable
+>chmod 777 /home/pi/domoticz/scripts/arp-detect.sh
+
+->add arp-scan to crontab:
 >crontab -e
 */1 * * * * /home/pi/domoticz/scripts/arp-detect.sh >> /dev/null 2>&1
-
-
- 
-
 
