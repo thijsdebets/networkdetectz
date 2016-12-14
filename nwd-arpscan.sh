@@ -205,7 +205,7 @@ CurrentDate=$(date)
 #			fi
 
 			# Check if the device is ON in Domoticz
-			grep ${DomIDX[$idx]} $DataDir/DomoticzStatus.on
+			grep -x ${DomIDX[$idx]} $DataDir/DomoticzStatus.on
 #			curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&rid=${DomIDX[$idx]}" | grep -m 1 "Status" | grep "On" > /dev/null
 			if [ $? -eq 0 ] ; then
 				DeviceDomStatus="On"
