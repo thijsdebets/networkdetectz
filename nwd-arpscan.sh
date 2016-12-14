@@ -119,6 +119,7 @@ CurrentDate=$(date)
 
 					# Get the latest version of the MAC -> Manufacturer mapping table
 					wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
+					#wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
 
 					MACIdentification=${ArpMAC[$dev]}
 					MACIdentification=${MACIdentification:0:8}
