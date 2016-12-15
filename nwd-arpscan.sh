@@ -9,8 +9,6 @@
 
 #Configuration file for Domoticz NetworkDetectz
 
-
-
 #--- Configuration ---#
 InstallDir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 DomoIP='127.0.0.1'		# Domoticz IP Address
@@ -20,30 +18,14 @@ source $InstallDir/nwd-config
 # not used:	curl -s "http://$DOMO_USER:$DOMO_PASS@$DomoIP:$DomoPort/json.htm?...
 # used: 	curl -s "http://$DomoIP:$DomoPort/json.htm?...
 
-
 #--- Initiation ---#
 DataDir="$InstallDir/data"
-LoopSleep=30
 CurrentDate=$(date)
+umask 000
 
-
-#--- Functions ---#
-
-	#--- Array Function Begin ---#
-	# Read the file in parameter and fill the array named "array"
-	getArray() {
-	    array=()
-	    i=0
-	    while read line # Read a line
-	    do
-	        array[i]=$line # Put it into the array
-	        i=$(($i + 1))
-	    done < $1
-	}
-	#--- Array Function End   ---#
+source $InstallDir/nwd-functions
 
 #--- Main loop ---#
-	umask 000
 	# Part 1: Execute ARP-SCAN and detect devices
 	if [ "$Log" == "High" ]  ; then
 		echo "$CurrentDate execute arp-scan" >> $DataDir/nwd.log
