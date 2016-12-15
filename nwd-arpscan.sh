@@ -25,8 +25,6 @@ umask 000
 
 source $InstallDir/nwd-functions
 
-#--- Main loop ---#
-	# Part 1: Execute ARP-SCAN and detect devices
 	if [ "$Log" == "High" ]  ; then
 		echo "$CurrentDate execute arp-scan" >> $DataDir/nwd.log
 	fi
@@ -37,6 +35,7 @@ source $InstallDir/nwd-functions
 	then
 		echo "Domoticz is offline. Retry later"
 	else
+	# Part 1: Execute ARP-SCAN and detect devices
 		# Get list of available network devices in local file
 		sudo arp-scan --localnet | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
 		# intermediate is used to keep content of arp-scan.raw highly available	
