@@ -13,11 +13,12 @@ getArray() {
 }
 #--- Array Function End   ---#
 
-cleanNic (mac) {
-	
+cleanNic() {
 	# Remove all non Alfanumeric characters and make uppercase and add dashes for lookup in oui.txt
-	mac=${mac//[!0-9A-Za-z]/}
-	mac=`echo $mac | tr '[:lower:]' '[:upper:]'` 
-	mac=$(echo ${mac:0:2}-${mac:2:2}-${mac:4:2}-${mac:6:2}-${mac:8:2}-${mac:10:2})
-	return $mac
+	workingMac=${1//[!0-9A-Za-z]/}
+	workingMac=`echo $workingMac | tr '[:lower:]' '[:upper:]'`
+	workingMac=$(echo ${workingMac:0:2}-${workingMac:2:2}-${workingMac:4:2}-${workingMac:6:2}-${workingMac:8:2}-${workingMac:10:2})
+	echo $workingMac
 }
+
+

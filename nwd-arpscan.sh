@@ -102,10 +102,8 @@ source $InstallDir/nwd-functions
 					wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
 					#wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
 
-					MACIdentification=${ArpMAC[$dev]}
+					MACIdentification=$(cleanNic ${ArpMAC[$dev]})
 					MACIdentification=${MACIdentification:0:8}
-					MACIdentification=`echo $MACIdentification | tr '[:lower:]' '[:upper:]'`
-					MACIdentification=`echo $MACIdentification | tr ":" "-"`
 					DeviceMan=""
 					DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
 					DeviceURLName=`echo $DeviceMan | tr "," "." | tr " " "_"`  
