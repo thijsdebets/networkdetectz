@@ -16,8 +16,13 @@ getArray() {
 cleanNic() {
 	# Remove all non Alfanumeric characters and make uppercase and add dashes for lookup in oui.txt
 	workingMac=${1//[!0-9A-Za-z]/}
-	workingMac=`echo $workingMac | tr '[:lower:]' '[:upper:]'`
-	workingMac=$(echo ${workingMac:0:2}-${workingMac:2:2}-${workingMac:4:2}-${workingMac:6:2}-${workingMac:8:2}-${workingMac:10:2})
+	case=`echo $2 | tr '[:lower:]' '[:upper:]'`
+	if [ "$case" == "UP" ] ; then
+		workingMac=`echo $workingMac | tr '[:lower:]' '[:upper:]'`
+	else
+		workingMac=`echo $workingMac | tr '[:upper:]' '[:lower:]'`
+	fi
+	workingMac=$(echo ${workingMac:0:2}$3${workingMac:2:2}$3${workingMac:4:2}$3${workingMac:6:2}$3${workingMac:8:2}$3${workingMac:10:2})
 	echo $workingMac
 }
 
