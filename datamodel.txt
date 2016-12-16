@@ -1,0 +1,46 @@
+logFile
+- logdate
+- logdatesHistory
+
+nic
+- mac
+- manufacturer
+- nicType (lan/wifi/bt)
+- timoutPeriod 
+- deviceId
+=changeType
++createNic
++addToDeviceId
+
+nicStatus
+- mac
+- status
+- lastSeen
+
+device
+- id 
+- name
+- description
+=changeName
++createDevice
++addNicMac
+
+deviceStatus
+- id
+- status
+- lastSeen
+
+external
+- system (domoticz)
+- identification
+
+externalConfig
+- protocol (http/https)
+- ip
+- port
+- user
+- password
+- link
+
+
+
