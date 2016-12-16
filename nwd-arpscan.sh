@@ -14,19 +14,23 @@ InstallDir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 DomoIP='127.0.0.1'		# Domoticz IP Address
 DomoPort='8080'			# Domoticz Port
 source $InstallDir/nwd-config
+source $InstallDir/nwd-config.own
+
 
 # not used:	curl -s "http://$DOMO_USER:$DOMO_PASS@$DomoIP:$DomoPort/json.htm?...
 # used: 	curl -s "http://$DomoIP:$DomoPort/json.htm?...
 
 #--- Initiation ---#
 DataDir="$InstallDir/data"
-CurrentDate=$(date)
+LogDir="$InstallDir/log"
+CurrentDateTime=$(date)
+CurrentDateYmd=$(date +"%Y%m%d")
 umask 000
 
 source $InstallDir/nwd-functions
 
 	if [ "$Log" == "High" ]  ; then
-		echo "$CurrentDate execute arp-scan" >> $DataDir/nwd.log
+		echo "$CurrentDateTime execute arp-scan" >> $LogDir/nwd.log.$CurrentDateYmd
 	fi
 	
 	# Check if Domoticz is online to continue, else suspend
@@ -77,21 +81,22 @@ source $InstallDir/nwd-functions
 		do
 			echo $dev
 			if [ "$Log" == "High" ] ; then
-				echo "$CurrentDate Check if ${ArpMAC[$dev]} - ${ArpMAN[$dev]} exists" >> $DataDir/nwd.log
+				echo "$CurrentDateTime Check if ${ArpMAC[$dev]} - ${ArpMAN[$dev]} exists" >> $LogDir/nwd.log.$CurrentDateYmd
 			fi
-
+			addNic ${ArpMAC[$dev]} "lan"
+			
 			DOM_IDX=""
 			DOM_IDX=$(cat $DataDir/arp-table.dom | grep -m 1 ${ArpMAC[$dev]} | cut -f2)
 			if expr "$DOM_IDX" '>' 0
 			then
-				echo "$CurrentDate Existing Device:    ${ArpMAC[$dev]} - ${ArpMAN[$dev]} - $DOM_IDX - ${ArpIP[$dev]}"
+				echo "$CurrentDateTime Existing Device:    ${ArpMAC[$dev]} - ${ArpMAN[$dev]} - $DOM_IDX - ${ArpIP[$dev]}"
 				if [ "$Log" == "High" ] ; then
-					echo "$CurrentDate Existing Device:    ${ArpMAC[$dev]} - ${ArpMAN[$dev]} - $DOM_IDX - ${ArpIP[$dev]}" >> $DataDit/nwd.log
+					echo "$CurrentDateTime Existing Device:    ${ArpMAC[$dev]} - ${ArpMAN[$dev]} - $DOM_IDX - ${ArpIP[$dev]}" >> $LogDir/nwd.log.$CurrentDateYmd
 				fi
 			else
 				if [ "$Log" == "High" ] ; then
-					echo "$CurrentDate Not found: ${ArpMAC[$dev]} - ${ArpMAN[$dev]}" >> $DataDir/nwd.log
-					cat $DataDir/arp-table.dom >> $DataDir/nwd.log
+					echo "$CurrentDateTime Not found: ${ArpMAC[$dev]} - ${ArpMAN[$dev]}" >> $LogDir/nwd.log.$CurrentDateYmd
+					cat $DataDir/arp-table.dom >> $LogDir/nwd.log.$CurrentDateYmd
 				fi
 				#Check for double entries using log
 				MacLoggedBefore=$( cat $DataDir/nwd.log | grep -m 1 ${ArpMAC[$dev]} )
@@ -99,14 +104,14 @@ source $InstallDir/nwd-functions
 				then
 
 					# Get the latest version of the MAC -> Manufacturer mapping table
-					wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
-					#wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
+					#wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
+					wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
 
-					MACIdentification=$(cleanNic ${ArpMAC[$dev]} "UP" "-")
+					MACIdentification=$(cleanMac ${ArpMAC[$dev]} "UP" "-")
 					MACIdentification=${MACIdentification:0:8}
 					DeviceMan=""
 					DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
-					DeviceURLName=`echo $DeviceMan | tr "," "." | tr " " "_"`  
+					DeviceURLName=`echo $DeviceMan | tr "," "."`  
 
 					# Create new Domoticz Hardware sensor
 					curl -G "$DomoIP:$DomoPort/json.htm" --data "type=createvirtualsensor" --data "idx=$Hardware" --data-urlencode "sensorname=New Device By $DeviceURLName"  --data "sensortype=6"
@@ -115,8 +120,8 @@ source $InstallDir/nwd-functions
 					NewDevIDX=""
 					NewDevIDX="$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')"
 					if [ "$Log" == "High" ] || [ "$Log" == "Low" ] ; then
-						echo "###########################################################################################" >> $DataDir/nwd.log
-						echo "$CurrentDate New device added: ${ArpMAC[$dev]}	$NewDevIDX	${ArpMAN[$dev]} by $DeviceMan " >> $DataDir/nwd.log
+						echo "###########################################################################################" >> $DataDir/nwd.log.$CurrentDateYmd
+						echo "$CurrentDateTime New device added: ${ArpMAC[$dev]}	$NewDevIDX	${ArpMAN[$dev]} by $DeviceMan " >> $DataDir/nwd.log
 					fi
 					echo "$NewDevIDX	${ArpMAC[$dev]}	0	$DeviceMan	" >> $DataDir/arp-table.dom
 #					sqlite3 nwd.db "INSERT INTO device (mac, name, manufacture) VALUES ('${ArpMAC[$dev]}','--- NEW DEVICE by Manufacturer $DeviceMan ---', '$DeviceMan' )";
@@ -194,9 +199,9 @@ source $InstallDir/nwd-functions
 			fi
 
 			if [ "$Log" == "High" ] ; then
-				echo "$CurrentDate Status of ${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) in Domoticz is $DeviceDomStatus" >> $DataDir/nwd.log
+				echo "$CurrentDateTime Status of ${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) in Domoticz is $DeviceDomStatus" >> $LogDir/nwd.log.$CurrentDateYmd
 			fi
-			echo "$CurrentDate Status of ${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) in Domoticz is $DeviceDomStatus"
+			echo "$CurrentDateTime Status of ${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) in Domoticz is $DeviceDomStatus"
 
 			# get ip address for device from arp-scan
 			DeviceIP=""
@@ -213,6 +218,7 @@ source $InstallDir/nwd-functions
 #					sqlite3 nwd.db "update idx set status = 'ON', statusdate = CURRENT_TIMESTAMP, ip = '$DeviceIP' where idx = ${DomIDX[$idx]}";
 #					echo "curl -s -i -H _Accept: application/json_ _http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=On&passcode=$DomoPIN_"
 					curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=On&passcode=$DomoPIN"
+					echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched ON" >> $LogDir/nwd.log.$CurrentDateYmd
 				fi
 				RetryCounter=0
 			else
@@ -231,7 +237,7 @@ source $InstallDir/nwd-functions
 
 #						sqlite3 nwd.db "update idx set status = 'OFF', statusdate = CURRENT_TIMESTAMP, ip = '$DeviceIP' where idx = ${DomIDX[$idx]}" ;
 						curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=Off&passcode=$DomoPIN"
-						#reset retrycounter
+						echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched OFF" >> $LogDir/nwd.log.$CurrentDateYmd						#reset retrycounter
 #						RetryCounter=0
 					else
 						echo "Will retry later"
@@ -250,16 +256,12 @@ source $InstallDir/nwd-functions
 	
 			# If it is the first device, then rebuild the arp-table.tmp else add device to arp-table.tmp
 			if [ "$idx" == "0" ] ; then
-				if [ "$Log" == "High" ] ; then
-					echo "$CurrentDate arp-table opnieuw opbouwen" >> $DataDir/nwd.log
-					echo "$CurrentDate ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $DataDir/nwd.log
-				fi
+				echo "$CurrentDateTime arp-table opnieuw opbouwen" >> $LogDir/nwd.log.$CurrentDateYmd
+				echo "$CurrentDateTime ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $LogDir/nwd.log.$CurrentDateYmd
 				echo "${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" > $DataDir/arp-table.tmp
 			else
-				if [ "$Log" == "High" ] ; then
-					echo "$CurrentDate device aan arp-table toevoegen" >> $DataDir/nwd.log
-					echo "$CurrentDate ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $DataDir/nwd.log
-				fi
+				echo "$CurrentDateTime device aan arp-table toevoegen" >> $LogDir/nwd.log.$CurrentDateYmd
+				echo "$CurrentDateTime ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $LogDir/nwd.log.$CurrentDateYmd
 				echo "${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $DataDir/arp-table.tmp
 			#end of rebuilding arp-table.tmp
 			fi
@@ -269,11 +271,11 @@ source $InstallDir/nwd-functions
 
 
 		if [ "$Log" == "High" ] ; then
-			cat $DataDir/arp-table.tmp >> $DataDir/nwd.log
+			cat $DataDir/arp-table.tmp >> $LogDir/nwd.log.$CurrentDateYmd
 		fi
 		if [ "$Log" == "High" ] ; then
-			echo "$CurrentDate -----" >> $DataDir/nwd.log
-			cat $DataDir/arp-table.dom >> $DataDir/nwd.log
+			echo "$CurrentDateTime -----" >> $LogDir/nwd.log.$CurrentDateYmd
+			cat $DataDir/arp-table.dom >> $LogDir/nwd.log.$CurrentDateYmd
 		fi
 
 		# cleanup result from arp-table.tmp to arp-table.dom
@@ -293,3 +295,5 @@ source $InstallDir/nwd-functions
 
 # End of NetWorkDetect-ARPSCAN
 
+# clean up old backups
+find $LogDir/* -mtime +$LogPeriod -type f -delete

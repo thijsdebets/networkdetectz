@@ -13,8 +13,11 @@ getArray() {
 }
 #--- Array Function End   ---#
 
-cleanNic() {
-	# Remove all non Alfanumeric characters and make uppercase and add dashes for lookup in oui.txt
+cleanMac() {
+	# $1 mac address
+	# $2 case ("UP"/"LOW")
+	# $3 seperator ("-"/":"/"" etc)
+	# Remove all non Alfanumeric characters,  set case and add seperator for lookup in oui.txt
 	workingMac=${1//[!0-9A-Za-z]/}
 	case=`echo $2 | tr '[:lower:]' '[:upper:]'`
 	if [ "$case" == "UP" ] ; then
@@ -26,4 +29,37 @@ cleanNic() {
 	echo $workingMac
 }
 
+addNic() {
+	# $1 mac
+	# $2 type (lan/wifi/bt)
+
+	cleanNic=$(cleanMac $1 "UP" "")
+	
+	# Get the latest version of the MAC -> Manufacturer mapping table
+	#wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
+	wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
+
+	MACIdentification=$(cleanMac $cleanNic "UP" "-")
+	MACIdentification=${MACIdentification:0:8}
+	DeviceMan=""
+	DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
+	DeviceURLName=`echo $DeviceMan | tr "," "."`  
+
+
+	grep $cleanMac $DataDir/nic.dm
+	if [ $? -eq 0 ] ; then
+		echo "device already registered"
+	else
+		echo "$cleanMac	$DeviceMan	$2	2	0" >> $DataDir/nic.dm
+		# Add device to Datamodel-Nic
+		#nic
+		#- mac
+		#- manufacturer
+		#- nicType (lan/wifi/bt)
+		#- timoutPeriod 
+		#- deviceId
+		echo "Added new mac $cleanMac by $DeviceMan to Datamodel-Nic" >> $LogDir/nic.dm.log.$CurrentDateYmd
+	fi
+	
+}
 
