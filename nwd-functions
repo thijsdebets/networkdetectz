@@ -48,17 +48,17 @@ addNic() {
 
 	grep $cleanNic $DataDir/nic.dm
 	if [ $? -eq 0 ] ; then
-		echo "device already registered"
-	else
-		echo "$cleanNic	$DeviceMan	$2	2	0" >> $DataDir/nic.dm
+#		echo "device already registered"
+#	else
+		echo ";$cleanNic;$2;2;0;$DeviceMan;" >> $DataDir/nic.dm
 		# Add device to Datamodel-Nic
 		#nic
 		#- mac
-		#- manufacturer
 		#- nicType (lan/wifi/bt)
 		#- timoutPeriod 
 		#- deviceId
-		echo "Added new mac $cleanNic by $DeviceMan to Datamodel-Nic" >> $LogDir/nic.dm.log.$CurrentDateYmd
+		#- manufacturer
+		echo "$CurrentDateTime - Added new mac $cleanNic by $DeviceMan to Datamodel-Nic" >> $LogDir/nic.dm.log.$CurrentDateYmd
 	fi
 	
 }
