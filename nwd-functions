@@ -32,24 +32,21 @@ cleanMac() {
 addNic() {
 	# $1 mac
 	# $2 type (lan/wifi/bt)
-
 	cleanNic=$(cleanMac $1 "UP" "")
-	
-	# Get the latest version of the MAC -> Manufacturer mapping table
-	#wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
-	#wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
-
-	MACIdentification=$(cleanMac $1 "UP" "-")
-	MACIdentification=${MACIdentification:0:8}
-	DeviceMan=""
-	DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
-	DeviceURLName=`echo $DeviceMan | tr "," "."`  
-
 
 	grep $cleanNic $DataDir/nic.dm
 	if [ $? -eq 0 ] ; then
 		echo "device already registered"
 	else
+		# Get the latest version of the MAC -> Manufacturer mapping table
+		#wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
+		wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
+
+		MACIdentification=$(cleanMac $1 "UP" "-")
+		MACIdentification=${MACIdentification:0:8}
+		DeviceMan=""
+		DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
+		DeviceURLName=`echo $DeviceMan | tr "," "."`  
 		echo ";$cleanNic;$2;2;0;$DeviceMan;" >> $DataDir/nic.dm
 		# Add device to Datamodel-Nic
 		#nic
