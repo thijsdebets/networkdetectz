@@ -83,7 +83,6 @@ source $InstallDir/nwd-functions
 			if [ "$Log" == "High" ] ; then
 				echo "$CurrentDateTime Check if ${ArpMAC[$dev]} - ${ArpMAN[$dev]} exists" >> $LogDir/nwd.log.$CurrentDateYmd
 			fi
-			addNic ${ArpMAC[$dev]} "lan"
 			
 			DOM_IDX=""
 			DOM_IDX=$(cat $DataDir/arp-table.dom | grep -m 1 ${ArpMAC[$dev]} | cut -f2)
@@ -178,6 +177,7 @@ source $InstallDir/nwd-functions
 #		for (( idx = 0; idx < ${#DomMAC[2]}; idx++ ))
 		do
 			# get device status and name from Domoticz
+			addNic ${DomIDX[$idx]} "lan"
 
 
 

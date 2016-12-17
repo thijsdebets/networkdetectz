@@ -46,7 +46,7 @@ addNic() {
 	DeviceURLName=`echo $DeviceMan | tr "," "."`  
 
 
-	grep $cleanMac $DataDir/nic.dm
+	grep $cleanNic $DataDir/nic.dm
 	if [ $? -eq 0 ] ; then
 		echo "device already registered"
 	else
