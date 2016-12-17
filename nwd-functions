@@ -39,7 +39,7 @@ addNic() {
 	#wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
 	wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
 
-	MACIdentification=$(cleanMac $cleanNic "UP" "-")
+	MACIdentification=$(cleanMac $1 "UP" "-")
 	MACIdentification=${MACIdentification:0:8}
 	DeviceMan=""
 	DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
@@ -50,7 +50,7 @@ addNic() {
 	if [ $? -eq 0 ] ; then
 		echo "device already registered"
 	else
-		echo "$cleanMac	$DeviceMan	$2	2	0" >> $DataDir/nic.dm
+		echo "$cleanNic	$DeviceMan	$2	2	0" >> $DataDir/nic.dm
 		# Add device to Datamodel-Nic
 		#nic
 		#- mac
@@ -58,7 +58,7 @@ addNic() {
 		#- nicType (lan/wifi/bt)
 		#- timoutPeriod 
 		#- deviceId
-		echo "Added new mac $cleanMac by $DeviceMan to Datamodel-Nic" >> $LogDir/nic.dm.log.$CurrentDateYmd
+		echo "Added new mac $cleanNic by $DeviceMan to Datamodel-Nic" >> $LogDir/nic.dm.log.$CurrentDateYmd
 	fi
 	
 }
