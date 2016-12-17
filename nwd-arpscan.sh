@@ -93,10 +93,8 @@ source $InstallDir/nwd-functions
 					echo "$CurrentDateTime Existing Device:    ${ArpMAC[$dev]} - ${ArpMAN[$dev]} - $DOM_IDX - ${ArpIP[$dev]}" >> $LogDir/nwd.log.$CurrentDateYmd
 				fi
 			else
-				if [ "$Log" == "High" ] ; then
-					echo "$CurrentDateTime Not found: ${ArpMAC[$dev]} - ${ArpMAN[$dev]}" >> $LogDir/nwd.log.$CurrentDateYmd
-					cat $DataDir/arp-table.dom >> $LogDir/nwd.log.$CurrentDateYmd
-				fi
+				echo "$CurrentDateTime Not found: ${ArpMAC[$dev]} - ${ArpMAN[$dev]}" >> $LogDir/nwd.log.$CurrentDateYmd
+#				cat $DataDir/arp-table.dom >> $LogDir/nwd.log.$CurrentDateYmd
 				#Check for double entries using log
 				MacLoggedBefore=$( cat $DataDir/nwd.log | grep -m 1 ${ArpMAC[$dev]} )
 				if [ -z $MacLoggedBefore ]
