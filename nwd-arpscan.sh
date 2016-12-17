@@ -254,12 +254,12 @@ source $InstallDir/nwd-functions
 	
 			# If it is the first device, then rebuild the arp-table.tmp else add device to arp-table.tmp
 			if [ "$idx" == "0" ] ; then
-				echo "$CurrentDateTime arp-table opnieuw opbouwen" >> $LogDir/nwd.log.$CurrentDateYmd
-				echo "$CurrentDateTime ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $LogDir/nwd.log.$CurrentDateYmd
+#				echo "$CurrentDateTime arp-table opnieuw opbouwen" >> $LogDir/nwd.log.$CurrentDateYmd
+#				echo "$CurrentDateTime ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $LogDir/nwd.log.$CurrentDateYmd
 				echo "${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" > $DataDir/arp-table.tmp
 			else
-				echo "$CurrentDateTime device aan arp-table toevoegen" >> $LogDir/nwd.log.$CurrentDateYmd
-				echo "$CurrentDateTime ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $LogDir/nwd.log.$CurrentDateYmd
+#				echo "$CurrentDateTime device aan arp-table toevoegen" >> $LogDir/nwd.log.$CurrentDateYmd
+#				echo "$CurrentDateTime ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $LogDir/nwd.log.$CurrentDateYmd
 				echo "${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $DataDir/arp-table.tmp
 			#end of rebuilding arp-table.tmp
 			fi
