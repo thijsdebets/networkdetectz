@@ -48,8 +48,8 @@ addNic() {
 
 	grep $cleanNic $DataDir/nic.dm
 	if [ $? -eq 0 ] ; then
-#		echo "device already registered"
-#	else
+		echo "device already registered"
+	else
 		echo ";$cleanNic;$2;2;0;$DeviceMan;" >> $DataDir/nic.dm
 		# Add device to Datamodel-Nic
 		#nic
