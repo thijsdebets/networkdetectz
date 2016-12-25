@@ -32,7 +32,7 @@ source $InstallDir/nwd-functions
 	if [ "$Log" == "High" ]  ; then
 		echo "$CurrentDateTime execute arp-scan" >> $LogDir/nwd.log.$CurrentDateYmd
 	fi
-	
+
 	# Check if Domoticz is online to continue, else suspend
 	DomoticzStatus=$(curl -s "http://$DomoIP:$DomoPort/json.htm?type=command&param=getSunRiseSet" | grep "\"status\" : \"OK\"")
 	if [ -z "$DomoticzStatus" ]
@@ -42,7 +42,7 @@ source $InstallDir/nwd-functions
 	# Part 1: Execute ARP-SCAN and detect devices
 		# Get list of available network devices in local file
 		sudo arp-scan --localnet | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
-		# intermediate is used to keep content of arp-scan.raw highly available	
+		# intermediate is used to keep content of arp-scan.raw highly available
 		ArpLines=$(wc -l $DataDir/arp-scan.lst)
 		if expr "$ArpLines" '>=' "0"
 		then
@@ -71,7 +71,7 @@ source $InstallDir/nwd-functions
 
 
 		# check for new devices and add them to Domoticz and Internal table if necessary
-		#	dev=0	
+		#	dev=0
 		#	for i in "${ArpMAC[@]}"
 		NewDevices=""
 
@@ -83,7 +83,7 @@ source $InstallDir/nwd-functions
 			if [ "$Log" == "High" ] ; then
 				echo "$CurrentDateTime Check if ${ArpMAC[$dev]} - ${ArpMAN[$dev]} exists" >> $LogDir/nwd.log.$CurrentDateYmd
 			fi
-			
+
 			DOM_IDX=""
 			DOM_IDX=$(cat $DataDir/arp-table.dom | grep -m 1 ${ArpMAC[$dev]} | cut -f2)
 			if expr "$DOM_IDX" '>' 0
@@ -102,13 +102,14 @@ source $InstallDir/nwd-functions
 
 					# Get the latest version of the MAC -> Manufacturer mapping table
 					#wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
-					wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
+					#wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
 
 					MACIdentification=$(cleanMac ${ArpMAC[$dev]} "UP" "-")
 					MACIdentification=${MACIdentification:0:8}
 					DeviceMan=""
 					DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
-					DeviceURLName=`echo $DeviceMan | tr "," "."`  
+					DeviceURLName=`echo $DeviceMan | tr "," "."`
+					#DeviceURLName=$(curl -s http://www.macvendorlookup.com/api/v2/b4:74:9f:8f:a7:3b/pipe | cut -d"|" -f5- | sed 's/|/_/g' | tr "," ".")
 
 					# Create new Domoticz Hardware sensor
 					curl -G "$DomoIP:$DomoPort/json.htm" --data "type=createvirtualsensor" --data "idx=$Hardware" --data-urlencode "sensorname=New Device By $DeviceURLName"  --data "sensortype=6"
@@ -227,21 +228,41 @@ source $InstallDir/nwd-functions
 #					RetryCounter=0
 				else
 					echo "Device might be turned OFF"
-					if expr "${DomCnt[$idx]}" '>' "$RetryAttempts" 
-					then
-						echo "Device is reallly off"
-						# Switch in Domoticz OFF
-#						sqlite3 nwd.db "update idx set status = 'OFF' where idx.idx = '${DomIDX[$idx]}' "; 
+	                                DeviceHasBT=$(grep "${DomMAC[$idx]}" $InstallDir/bluetooth.dom)
+	                                if [ "$DeviceHasBT" != "" ] ; then
+	                                        DeviceBluetooth=$( echo "$DeviceHasBT"  | cut -d";" -f2 )
+	                                        BluetoothFound=$( sudo hcitool name $DeviceBluetooth )
+	                                        if [ "$BluetoothFound" == "" ] ; then
+	                                                DeviceDetectStatus="Off"
+	                                        else
+	                                                DeviceDetectStatus="On"
+							RetryCounter=0
+							DeviceIP="BT:$DeviceBluetooth"
+	                                        fi
+#	                                else
+#						if expr "${DomCnt[$idx]}" '>' "$RetryAttempts" 
+#						then
+#	                                                DeviceDetectStatus="Off"
+#	                                        else
+#	                                                DeviceDetectStatus="On"
+#	                                        fi
+					fi
+					if [ $DeviceDetectStatus == "Off" ] ; then
+						if expr "${DomCnt[$idx]}" '>' "$RetryAttempts" ; then 
+							echo "Device is reallly off"
+							# Switch in Domoticz OFF
+#							sqlite3 nwd.db "update idx set status = 'OFF' where idx.idx = '${DomIDX[$idx]}' "; 
 
-#						sqlite3 nwd.db "update idx set status = 'OFF', statusdate = CURRENT_TIMESTAMP, ip = '$DeviceIP' where idx = ${DomIDX[$idx]}" ;
-						curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=Off&passcode=$DomoPIN"
-						echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched OFF" >> $LogDir/nwd.log.$CurrentDateYmd						#reset retrycounter
-#						RetryCounter=0
-					else
-						echo "Will retry later"
-						RetryCounter=$((RetryCounter+1))
-#						sqlite3 nwd.db "update idx set status = '$RetryCounter' where idx.idx = '${DomIDX[$idx]}' "; 
+#							sqlite3 nwd.db "update idx set status = 'OFF', statusdate = CURRENT_TIMESTAMP, ip = '$DeviceIP' where idx = ${DomIDX[$idx]}" ;
+							curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=${DomIDX[$idx]}&switchcmd=Off&passcode=$DomoPIN"
+							echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched OFF" >> $LogDir/nwd.log.$CurrentDateYmd						#reset retrycounter
+#							RetryCounter=0
+						else
+							echo "Will retry later"
+							RetryCounter=$((RetryCounter+1))
+#							sqlite3 nwd.db "update idx set status = '$RetryCounter' where idx.idx = '${DomIDX[$idx]}' "; 
 
+						fi
 					fi
 				fi
 			# End of processing based on presence of IP in ARP-SCAN 
