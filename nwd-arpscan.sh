@@ -175,7 +175,7 @@ source $InstallDir/nwd-functions
 #		for (( idx = 0; idx < ${#DomMAC[2]}; idx++ ))
 		do
 			# get device status and name from Domoticz
-			addNic ${DomMAC[$idx]} "lan"
+#			addNic ${DomMAC[$idx]} "lan"
 
 
 
