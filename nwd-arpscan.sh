@@ -101,15 +101,17 @@ source $InstallDir/nwd-functions
 				then
 
 					# Get the latest version of the MAC -> Manufacturer mapping table
-					#wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
-					#wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
+					# wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
+					wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
 
-					MACIdentification=$(cleanMac ${ArpMAC[$dev]} "UP" "-")
-					MACIdentification=${MACIdentification:0:8}
 					DeviceMan=""
-					DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
+					DeviceMan=$(curl -s http://www.macvendorlookup.com/api/v2/${ArpMAC[$dev]}/pipe | cut -d"|" -f5- | sed 's/|/,/g')
+					if [ "$DeviceMan" == "" ] ; then
+						MACIdentification=$(cleanMac ${ArpMAC[$dev]} "UP" "-")
+						MACIdentification=${MACIdentification:0:8}
+						DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
+					fi
 					DeviceURLName=`echo $DeviceMan | tr "," "."`
-					#DeviceURLName=$(curl -s http://www.macvendorlookup.com/api/v2/b4:74:9f:8f:a7:3b/pipe | cut -d"|" -f5- | sed 's/|/_/g' | tr "," ".")
 
 					# Create new Domoticz Hardware sensor
 					curl -G "$DomoIP:$DomoPort/json.htm" --data "type=createvirtualsensor" --data "idx=$Hardware" --data-urlencode "sensorname=New Device By $DeviceURLName"  --data "sensortype=6"
