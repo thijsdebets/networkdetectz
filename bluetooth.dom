@@ -1,3 +1,6 @@
-LAN__MAC__ADDRESS;BT__MAC__ADDRESS
-00:01:23:45:67:ab;00:01:23:45:67:AA
-
+BT__MAC__ADDRESS;descriptuon;mac1;mac2;mac3;etc
+CC:61:E5:57:35:AB;GSM Moto X Force;cc:61:e5:57:35:ac
+;TV?;e4:e0:c5:bb:36:dc;E4:E0:C5:3B:6F:F9
+b4:74:9f:8f:a7:3b;Laptop RF711;e8:11:32:95:80:a2;b4:74:9f:ed:c8:4e
+b0:c5:59:92:33:bc;GSM S4 mini;b0:c5:59:92:33:bd
+b0:c5:59:92:34:0d;GSM S4 mini;b0:c5:59:92:34:0d

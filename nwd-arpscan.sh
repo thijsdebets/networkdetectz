@@ -230,16 +230,23 @@ source $InstallDir/nwd-functions
 #					RetryCounter=0
 				else
 					echo "Device might be turned OFF"
-	                                DeviceHasBT=$(grep "${DomMAC[$idx]}" $InstallDir/bluetooth.dom)
-	                                if [ "$DeviceHasBT" != "" ] ; then
-	                                        DeviceBluetooth=$( echo "$DeviceHasBT"  | cut -d";" -f2 )
+	                                DeviceBluetooth=$(grep "${DomMAC[$idx]}" $InstallDir/bluetooth.dom | cut -d";" -f1)
+	                                DeviceIP=$(grep "${DomMAC[$idx]}" $DataDir/arp-table.dom | cut -f4)
+					AnswersPing=$(ping -c1 $DeviceIP | grep errors)
+					if [ "DeviceIP" != "" && "$AnswersPing" == "" ] ; then
+						echo "Not in Arp-scan, but responded to Ping"
+                                                DeviceDetectStatus="On"
+						RetryCounter=0
+	                                elif [ "$DeviceBluetooth" != "" ] ; then
+#	                                        DeviceBluetooth=$( echo "$DeviceHasBT"  | cut -d";" -f2 )
 	                                        BluetoothFound=$( sudo hcitool name $DeviceBluetooth )
-	                                        if [ "$BluetoothFound" == "" ] ; then
-	                                                DeviceDetectStatus="Off"
-	                                        else
+	                                        if [ "$BluetoothFound" != "" ] ; then
+#	                                                DeviceDetectStatus="Off"
+#	                                        else
 	                                                DeviceDetectStatus="On"
+							echo "Not in Arp-scan, but responded to BlueTooth"
 							RetryCounter=0
-							DeviceIP="BT:$DeviceBluetooth"
+#							DeviceIP="BT:$DeviceBluetooth"
 	                                        fi
 #	                                else
 #						if expr "${DomCnt[$idx]}" '>' "$RetryAttempts" 
