@@ -231,9 +231,9 @@ source $InstallDir/nwd-functions
 				else
 					echo "Device might be turned OFF"
 	                                DeviceBluetooth=$(grep "${DomMAC[$idx]}" $InstallDir/bluetooth.dom | cut -d";" -f1)
-	                                DeviceIP=$(grep "${DomMAC[$idx]}" $DataDir/arp-table.dom | cut -f4)
-					AnswersPing=$(ping -c1 $DeviceIP | grep errors)
-					if [ "DeviceIP" != "" && "$AnswersPing" == "" ] ; then
+	                                DeviceIP=$(grep "${DomMAC[$idx]}" $DataDir/arp-table.dom | cut -f5)
+					AnswersPing=$(ping -c1 "$DeviceIP" | grep "1 received")
+					if [ "$DeviceIP" != "" ] && [ "$AnswersPing" != "" ] ; then
 						echo "Not in Arp-scan, but responded to Ping"
                                                 DeviceDetectStatus="On"
 						RetryCounter=0
@@ -287,7 +287,7 @@ source $InstallDir/nwd-functions
 #				echo "$CurrentDateTime ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $LogDir/nwd.log.$CurrentDateYmd
 				echo "${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" > $DataDir/arp-table.tmp
 			else
-				if [ "${DomIDX[$idx]}" != ""] ; then
+				if [ "${DomIDX[$idx]}" != "" ] ; then
 #					echo "$CurrentDateTime device aan arp-table toevoegen" >> $LogDir/nwd.log.$CurrentDateYmd
 #					echo "$CurrentDateTime ${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $LogDir/nwd.log.$CurrentDateYmd
 					echo "${DomIDX[$idx]}	${DomMAC[$idx]}	${DomCnt[$idx]}	${DeviceName[$idx]}	$DeviceIP" >> $DataDir/arp-table.tmp
