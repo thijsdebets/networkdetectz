@@ -1,10 +1,7 @@
 #Configuration file for Domoticz NetworkDetectz
-#After adjusting settings, copy this file to nwd-config.own
-#this will prevent loss of settings incase of future improvements to this config file.
-#Always compare nwd-config and nwd-config.own after an update!
+#version 2017-02-15
 
-RetryAttempts=1         # 3 = retry 4 times (5 minutes), 1 = retry 2 = 3 minutes
-Log="Low"               # High: Almost everything (huge logfile), Low: New devices and errors, Error: Only errors, Not: Nothing
+RetryAttempts=3         # 3 = retry 4 times (5 minutes), 1 = retry 2 = 3 minutes
 LogPeriod=5				# Keep logfiles for # days
 NetworkTopIP="192"		# used to filter the relevant items from arpscan results
 
@@ -13,8 +10,9 @@ UseDomoticz="YES"
 DomoIP='127.0.0.1'		# Domoticz IP Address
 DomoPort='8080'			# Domoticz Port
 DomoPIN='1234'
-HardwareIDX=14
-NewDevicesFoundIDX=111
+HardwareIDX=99
+NewDevicesFoundIDX=999
+NWDScriptRunning=999
 
 
 
