@@ -62,30 +62,6 @@ else
 		exit
 	fi
 
-	# Create seperate files to fill arrays
-#	cat $DataDir/arp-scan.raw | grep $NetworkTopIP | cut -f2 > $DataDir/arp-scan.mac
-#	cat $DataDir/arp-scan.raw | grep $NetworkTopIP | cut -f3 > $DataDir/arp-scan.man
-	#	and just for info the ip-address
-#	cat $DataDir/arp-scan.raw | grep $NetworkTopIP | cut -f1 > $DataDir/arp-scan.ip
-
-	# fill arrays
-#	ArpMAC=()
-#	getArray "$DataDir/arp-scan.mac"
-#	ArpMAC=("${array[@]}")
-
-#	ArpMAN=()
-#	getArray "$DataDir/arp-scan.man"
-#	ArpMAN=("${array[@]}")
-
-	#	and just for info the ip-address
-#	ArpIP=()
-#	getArray "$DataDir/arp-scan.ip"
-#	ArpIP=("${array[@]}")
-
-
-	# check for new devices and add them to Domoticz and Internal table if necessary
-	#	dev=0
-	#	for i in "${ArpMAC[@]}"
 	NewDevices=""
 
 	echo "lets start"
@@ -99,37 +75,6 @@ else
 		if ! grep -q $mac $DataDir/arp-table.dom ; then
 			echo "new device found"
 			#add mac to arp-table
-#
-#	for (( dev = 0; dev < ${#ArpMAC[@]}; dev++ )) ; do
-#		echo $dev
-#
-#		DOM_IDX=""
-#		DOM_IDX=$(cat $DataDir/arp-table.dom | grep -m 1 ${ArpMAC[$dev]} | cut -f2)
-#		if expr "$DOM_IDX" '>' 0
-#		then
-#			echo "$CurrentDateTime Existing Device:    ${ArpMAC[$dev]} - ${ArpMAN[$dev]} - $DOM_IDX - ${ArpIP[$dev]}"
-#		else
-#			echo "$CurrentDateTime Not found: ${ArpMAC[$dev]} - ${ArpMAN[$dev]}" >> $LogDir/nwd.log.$CurrentDateYmd
-#			#Check for double entries using log
-#			MacLoggedBefore=$( cat $DataDir/nwd.log | grep -m 1 ${ArpMAC[$dev]} )
-#			if [ -z $MacLoggedBefore ]
-#			then
-				# Get the latest version of the MAC -> Manufacturer mapping table
-				# wget -c -N -O $DataDir/oui.txt http://standards-oui.ieee.org/oui.txt
-#				wget -c -N -O $DataDir/oui.txt http://linuxnet.ca/ieee/oui.txt
-
-				#DeviceMan=""
-				#DeviceMan=$(curl -s "http://www.macvendorlookup.com/api/v2/$mac/pipe" | cut -d"|" -f5- | sed 's/|/,/g')
-				#echo "Manufacturer found: $DeviceMan"
-				#if [ "$DeviceMan" == "" ] ; then
-				#	MACIdentification=$(cleanMac $mac} "UP" "-")
-				#	MACIdentification=${MACIdentification:0:8}
-				#	DeviceMan=$(cat $DataDir/oui.txt | grep -m 1 $MACIdentification | cut -f3)
-				#fi
-				#DeviceURLName=`echo "$DeviceMan" | tr "," " "`
-				#echo "$DeviceURLName"
-
-				# Create new Domoticz Hardware sensor
 				curl -G "$DomoIP:$DomoPort/json.htm" --data "type=createvirtualsensor" --data "idx=$HardwareIDX" --data-urlencode "sensorname=New Device By $man"  --data "sensortype=6"
 				echo "$createdevice"
 				# Get IDX of the newly created sensor
@@ -139,13 +84,6 @@ else
 
 				# switch on NewDeviceFound notifier in Domoticz:
 				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevIDX&switchcmd=On"
-#			else
-#				echo "New MAC address ignored. Already logged nwd.log"
-#			fi
-			# end of 'does device exist in arp-table.dom'
-#		fi
-		# continue with next device of Arp-scan
-#	done
 		fi
 	done < $DataDir/arp-scan.raw
 
@@ -164,40 +102,6 @@ else
 		ip=$(echo "$arptableline" | cut -f5)
 
 #	cat $DataDir/arp-table.dom | cut -f1 > $DataDir/arp-table.idx
-#	cat $DataDir/arp-table.dom | cut -f2 > $DataDir/arp-table.mac
-#	cat $DataDir/arp-table.dom | cut -f3 > $DataDir/arp-table.cnt
-	# 	and just for info the name
-#	cat $DataDir/arp-table.dom | cut -f4 > $DataDir/arp-table.nam  
-
-
-	# fill arrays
-#	DomMAC=()
-#	getArray "$DataDir/arp-table.mac"
-#	DomMAC=("${array[@]}")
-
-#	DomIDX=()
-#	getArray "$DataDir/arp-table.idx"
-#	DomIDX=("${array[@]}")
-
-#	DomCnt=()
-#	getArray "$DataDir/arp-table.cnt"
-#	DomCnt=("${array[@]}")
-
-#	DomName=()
-#	getArray "$DataDir/arp-table.nam"
-#	DomName=("${array[@]}")
-
-
-	# For every device in the arp-table.dom see if there is an entry in the arp-scan. Switch Domoticz state if necessery
-	#new generic method
-
-#	for (( idx = 0; idx < ${#DomMAC[@]}; idx++ ))
-#	do
-		# get device status and name from Domoticz
-
-#		RetryCounter=${DomCnt[$idx]}
-#		DeviceName[$idx]=${DomName[$idx]}
-
 		# Check if the device is ON in Domoticz
 		grep -x $idx $DataDir/DomoticzStatus.on
 		if [ $? -eq 0 ] ; then
@@ -210,7 +114,7 @@ else
 
 		# get ip address for device from arp-scan
 		DeviceIP=""
-		DeviceIP=$(cat $DataDir/arp-scan.raw | grep -m 1 $mac | cut -f1)
+		DeviceIP=$(cat $DataDir/arp-scan.raw | grep -m 1 "$mac" | cut -f1)
 		if expr "$DeviceIP" '>' 0
 		then
 			DeviceDetectStatus="On"
@@ -219,7 +123,7 @@ else
 			else
 				echo "Device is turned ON"
 				# Switch in Domoticz ON
-				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx}&switchcmd=On&passcode=$DomoPIN"
+				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx&switchcmd=On&passcode=$DomoPIN"
 				sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName	$ip"'/g' $DataDir/arp-table.dom
 #					echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched ON" >> $LogDir/nwd.log.$CurrentDateYmd
 			fi
