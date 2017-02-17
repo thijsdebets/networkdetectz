@@ -67,6 +67,7 @@ else
 	echo "lets start"
 	# determine per device in the arp-scan if it exists. If it doesn't add it to Domoticz
 	while read arpscanline ; do
+	if [ "$arpscanline" != "" ] ; then
 		echo "Check for $arpscanline"
 		mac=$(echo "$arpscanline" | cut -f2)
 		ip=$(echo "$arpscanline" | cut -f1)
@@ -85,6 +86,7 @@ else
 				# switch on NewDeviceFound notifier in Domoticz:
 				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevIDX&switchcmd=On"
 		fi
+	fi
 	done < $DataDir/arp-scan.raw
 
 	# Part 2: Determine and update device statusses
@@ -95,6 +97,7 @@ else
 
 	# Create seperate files to fill arrays
 	while read arptableline ; do
+	if [ "$arptableline" != "" ] ; then
 		idx=$(echo "$arptableline" | cut -f1)
 		mac=$(echo "$arptableline" | cut -f2)
 		RetryCounter=$(echo "$arptableline" | cut -f3)
@@ -185,7 +188,7 @@ else
 		# done checking and switching per device 
 	
 
-
+	fi
 	done < $DataDir/arp-table.dom
 
 	# cleanup result from arp-table.tmp to arp-table.dom
