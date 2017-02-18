@@ -55,7 +55,8 @@ else
 	# Get list of available network devices in local file
 	echo "Execute Arp-Scan"
 #	sudo arp-scan --localnet -timeout=5000 | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
-	sudo arp-scan -l -r10 -g -R | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
+#	sudo arp-scan -l -r10 -g -R | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
+	sudo arp-scan -l -r10 -g -R | head -n-3 | tail -n+3 | sort > $DataDir/arp-scan.lst
 	# intermediate is used to keep content of arp-scan.raw highly available
 	ArpLines=$(wc -l $DataDir/arp-scan.lst)
 	if expr "$ArpLines" '>=' "0" ; 	then
@@ -86,7 +87,7 @@ else
 				echo "$NewDevIDX	$mac	0	$man	$ip	NEW" >> $DataDir/arp-table.dom
 
 				# switch on NewDeviceFound notifier in Domoticz:
-				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevIDX&switchcmd=On"
+				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDeviceFoundIDX&switchcmd=On"
 		fi
 	fi
 	done < $DataDir/arp-scan.raw
