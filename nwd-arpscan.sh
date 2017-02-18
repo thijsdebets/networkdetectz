@@ -98,7 +98,6 @@ else
 	cat $DataDir/DomoticzStatus.dat | grep -A 1 '"Data" : "On"' | grep 'idx' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.on
 	cat $DataDir/DomoticzStatus.dat | grep -A 1 '"Data" : "Off"' | grep 'idx' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
 
-	# Create seperate files to fill arrays
 	while read arptableline ; do
 	if [ "$arptableline" != "" ] ; then
 		echo "$arptableline"
@@ -190,6 +189,28 @@ curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type
 
 #Make device list available online via domoitczurl/devices.txt
 cp /home/pi/domoticz/networkdetectz/data/arp-table.dom /home/pi/domoticz/www/devices.txt
+
+echo "<html><head><title>Domoticz Network Devices</title><body><table border=1 cellpadding=1>" > /home/pi/domoticz/www/devices.html
+echo "<tr><th>IDX</th><th>Mac</th><th>RetryCounter</th><th>DeviceName</th><th>IP</th><th>Status</th></tr>"  >> /home/pi/domoticz/www/devices.html
+
+while read arptableline ; do
+if [ "$arptableline" != "" ] ; then
+	echo "$arptableline"
+	idx=$(echo "$arptableline" | cut -f1)
+	mac=$(echo "$arptableline" | cut -f2)
+	RetryCounter=$(echo "$arptableline" | cut -f3)
+	DeviceName=$(echo "$arptableline" | cut -f4)
+	ip=$(echo "$arptableline" | cut -f5)
+	status=$(echo "$arptableline" | cut -f6)
+
+echo "<tr><td>$idx</td><td>$mac</td><td>$RetryCounter</td><td>$DeviceName</td>"  >> /home/pi/domoticz/www/devices.html
+echo "<td>$ip <a href=http://$ip>http</a> <a href=ssh://$ip>ssh</a></td>"  >> /home/pi/domoticz/www/devices.html
+echo "<td>$status</td></tr>" >> /home/pi/domoticz/www/devices.html
+
+fi
+done < $DataDir/arp-table.dom
+echo "</table></body></html>" >> /home/pi/domoticz/www/devices.html
+
 
 #Make device list available for other scripts that require an IP address
 cp /home/pi/domoticz/networkdetectz/data/arp-scan.raw /home/pi/domoticz/scripts/arp-temp
