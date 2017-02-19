@@ -97,14 +97,15 @@ else
 
 	# Part 2: Determine and update device statusses
 
-	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX" | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"' > $DataDir/DomoticzStatus.dat
-	cat $DataDir/DomoticzStatus.dat | grep -A 1 '"Data" : "On"' | grep 'idx' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.on
-	cat $DataDir/DomoticzStatus.dat | grep -A 1 '"Data" : "Off"' | grep 'idx' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
+	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX" | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $DataDir/DomoticzStatus.dat
+	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "On"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.on
+	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "Off"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
 
 	while read arptableline ; do
 	if [ "$arptableline" != "" ] ; then
 		echo "$arptableline"
 		idx=$(echo "$arptableline" | cut -f1)
+
 		mac=$(echo "$arptableline" | cut -f2)
 		RetryCounter=$(echo "$arptableline" | cut -f3)
 		DeviceName=$(echo "$arptableline" | cut -f4)
@@ -193,8 +194,8 @@ curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type
 #Make device list available online via domoitczurl/devices.txt
 cp /home/pi/domoticz/networkdetectz/data/arp-table.dom /home/pi/domoticz/www/devices.txt
 
-echo "<html><head><title>Domoticz Network Devices</title><body><table border=1 cellpadding=1>" > /home/pi/domoticz/www/devices.html
-echo "<tr><th>IDX</th><th>Name</th><th>Status</th><th>MAC</th><th>IP</th></tr>"  >> /home/pi/domoticz/www/devices.html
+echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1>" > /home/pi/domoticz/www/devices.html
+echo "<tr><th>IDX</th><th>Name - $CurrentDateTime</th><th>Status</th><th>MAC</th><th colspan=3>IP</th></tr>"  >> /home/pi/domoticz/www/devices.html
 
 while read arptableline ; do
 if [ "$arptableline" != "" ] ; then
@@ -205,9 +206,11 @@ if [ "$arptableline" != "" ] ; then
 		mac=$(echo "$arptableline" | cut -f2)
 #		RetryCounter=$(echo "$arptableline" | cut -f3)
 		DeviceName=$(echo "$arptableline" | cut -f4)
+		DomoName=$(cat $DataDir/DomoticzStatus.dat | grep -B 1 "\"idx\" : \"$idx\"" | grep '"Name"' | cut -d"\"" -f4)
+
 		ip=$(echo "$arptableline" | cut -f5)
-		echo "<tr><td>$idx</td><td>$DeviceName</td><td bgcolor=lightgreen>$status</td><td>$mac</td>"  >> /home/pi/domoticz/www/devices.html
-		echo "<td>$ip <a href=http://$ip>http</a> <a href=ssh://$ip>ssh</a></td>"  >> /home/pi/domoticz/www/devices.html
+		echo "<tr><td>$idx</td><td>$DomoName<br><font size=1>$DeviceName</font></td><td bgcolor=lightgreen>$status</td><td>$mac</td>"  >> /home/pi/domoticz/www/devices.html
+		echo "<td>$ip</td><td><a href=http://$ip>http</a></td><td><a href=ssh://$ip>ssh</a></td>"  >> /home/pi/domoticz/www/devices.html
 		echo "</tr>" >> /home/pi/domoticz/www/devices.html
 	fi
 
@@ -225,7 +228,7 @@ if [ "$arptableline" != "" ] ; then
 		DeviceName=$(echo "$arptableline" | cut -f4)
 #		ip=$(echo "$arptableline" | cut -f5)
 		echo "<tr><td>$idx</td><td>$DeviceName</td><td>$status</td><td>$mac</td>"  >> /home/pi/domoticz/www/devices.html
-		echo "<td></td>"  >> /home/pi/domoticz/www/devices.html
+		echo "<td colspan=3></td>"  >> /home/pi/domoticz/www/devices.html
 		echo "</tr>" >> /home/pi/domoticz/www/devices.html
 	fi
 
