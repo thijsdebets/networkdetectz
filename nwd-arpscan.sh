@@ -73,10 +73,12 @@ else
 	if [ "$arpscanline" != "" ] ; then
 #		echo "Check for $arpscanline"
 		mac=$(echo "$arpscanline" | cut -f2)
+		size=${#mac} 
 		ip=$(echo "$arpscanline" | cut -f1)
 		man=$(echo "$arpscanline" | cut -f3)
 
-		if ! grep -q $mac $DataDir/arp-table.dom ; then
+		if ! grep -q $mac $DataDir/arp-table.dom ; then 
+		if [ "$size" == "17" ] ; then
 			echo "new device found"
 			#add mac to arp-table
 				curl -G "$DomoIP:$DomoPort/json.htm" --data "type=createvirtualsensor" --data "idx=$HardwareIDX" --data-urlencode "sensorname=New Device By $man"  --data "sensortype=6"
@@ -88,6 +90,7 @@ else
 
 				# switch on NewDeviceFound notifier in Domoticz:
 				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDeviceFoundIDX&switchcmd=On"
+		fi
 		fi
 	fi
 	done < $DataDir/arp-scan.raw
@@ -191,24 +194,46 @@ curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type
 cp /home/pi/domoticz/networkdetectz/data/arp-table.dom /home/pi/domoticz/www/devices.txt
 
 echo "<html><head><title>Domoticz Network Devices</title><body><table border=1 cellpadding=1>" > /home/pi/domoticz/www/devices.html
-echo "<tr><th>IDX</th><th>Mac</th><th>RetryCounter</th><th>DeviceName</th><th>IP</th><th>Status</th></tr>"  >> /home/pi/domoticz/www/devices.html
+echo "<tr><th>IDX</th><th>Name</th><th>Status</th><th>MAC</th><th>IP</th></tr>"  >> /home/pi/domoticz/www/devices.html
 
 while read arptableline ; do
 if [ "$arptableline" != "" ] ; then
-	echo "$arptableline"
-	idx=$(echo "$arptableline" | cut -f1)
-	mac=$(echo "$arptableline" | cut -f2)
-	RetryCounter=$(echo "$arptableline" | cut -f3)
-	DeviceName=$(echo "$arptableline" | cut -f4)
-	ip=$(echo "$arptableline" | cut -f5)
+#	echo "$arptableline"
 	status=$(echo "$arptableline" | cut -f6)
-
-echo "<tr><td>$idx</td><td>$mac</td><td>$RetryCounter</td><td>$DeviceName</td>"  >> /home/pi/domoticz/www/devices.html
-echo "<td>$ip <a href=http://$ip>http</a> <a href=ssh://$ip>ssh</a></td>"  >> /home/pi/domoticz/www/devices.html
-echo "<td>$status</td></tr>" >> /home/pi/domoticz/www/devices.html
+	if [ "$status" != "Off" ] ; then
+		idx=$(echo "$arptableline" | cut -f1)
+		mac=$(echo "$arptableline" | cut -f2)
+#		RetryCounter=$(echo "$arptableline" | cut -f3)
+		DeviceName=$(echo "$arptableline" | cut -f4)
+		ip=$(echo "$arptableline" | cut -f5)
+		echo "<tr><td>$idx</td><td>$DeviceName</td><td bgcolor=lightgreen>$status</td><td>$mac</td>"  >> /home/pi/domoticz/www/devices.html
+		echo "<td>$ip <a href=http://$ip>http</a> <a href=ssh://$ip>ssh</a></td>"  >> /home/pi/domoticz/www/devices.html
+		echo "</tr>" >> /home/pi/domoticz/www/devices.html
+	fi
 
 fi
 done < $DataDir/arp-table.dom
+
+while read arptableline ; do
+if [ "$arptableline" != "" ] ; then
+#	echo "$arptableline"
+	status=$(echo "$arptableline" | cut -f6)
+	if [ "$status" == "Off" ] ; then
+		idx=$(echo "$arptableline" | cut -f1)
+		mac=$(echo "$arptableline" | cut -f2)
+#		RetryCounter=$(echo "$arptableline" | cut -f3)
+		DeviceName=$(echo "$arptableline" | cut -f4)
+#		ip=$(echo "$arptableline" | cut -f5)
+		echo "<tr><td>$idx</td><td>$DeviceName</td><td>$status</td><td>$mac</td>"  >> /home/pi/domoticz/www/devices.html
+		echo "<td></td>"  >> /home/pi/domoticz/www/devices.html
+		echo "</tr>" >> /home/pi/domoticz/www/devices.html
+	fi
+
+fi
+done < $DataDir/arp-table.dom
+
+
+
 echo "</table></body></html>" >> /home/pi/domoticz/www/devices.html
 
 
