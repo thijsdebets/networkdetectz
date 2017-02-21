@@ -40,6 +40,7 @@ DataDir="$InstallDir/data"
 LogDir="$InstallDir/log"
 CurrentDateTime=$(date)
 CurrentDateYmd=$(date +"%Y%m%d")
+CurrentDateShort=$(date +"%H:%M %d%b%Y")
 umask 000
 
 #source $InstallDir/nwd-functions
@@ -73,7 +74,7 @@ else
 	if [ "$arpscanline" != "" ] ; then
 #		echo "Check for $arpscanline"
 		mac=$(echo "$arpscanline" | cut -f2)
-		size=${#mac} 
+		size=${#mac}
 		ip=$(echo "$arpscanline" | cut -f1)
 		man=$(echo "$arpscanline" | cut -f3)
 
@@ -86,7 +87,7 @@ else
 				# Get IDX of the newly created sensor
 				NewDevIDX=""
 				NewDevIDX=$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')
-				echo "$NewDevIDX	$mac	0	$man	$ip	NEW" >> $DataDir/arp-table.dom
+				echo "$NewDevIDX	$mac	0	$man	$ip	NEW	New Device	$CurrentDateShort" >> $DataDir/arp-table.dom
 
 				# switch on NewDeviceFound notifier in Domoticz:
 				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDeviceFoundIDX&switchcmd=On"
@@ -95,21 +96,23 @@ else
 	fi
 	done < $DataDir/arp-scan.raw
 
+
 	# Part 2: Determine and update device statusses
 
 	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX" | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $DataDir/DomoticzStatus.dat
 	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "On"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.on
-	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "Off"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
+#	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "Off"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
 
 	while read arptableline ; do
 	if [ "$arptableline" != "" ] ; then
-		echo "$arptableline"
+#		echo "$arptableline"
 		idx=$(echo "$arptableline" | cut -f1)
 
 		mac=$(echo "$arptableline" | cut -f2)
 		RetryCounter=$(echo "$arptableline" | cut -f3)
 		DeviceName=$(echo "$arptableline" | cut -f4)
 		ip=$(echo "$arptableline" | cut -f5)
+		DomoName=$(echo "$arptableline" | cut -f7)
 
 #	cat $DataDir/arp-table.dom | cut -f1 > $DataDir/arp-table.idx
 		# Check if the device is ON in Domoticz
@@ -133,8 +136,13 @@ else
 			else
 				echo "Device is turned ON"
 				# Switch in Domoticz ON
+				DeviceName=$(cat $DataDir/arp-scan.raw | grep "$mac" | cut -f3)
+				DomoNewName=$(cat $DataDir/DomoticzStatus.dat | grep -B 1 "\"idx\" : \"$idx\"" | grep '"Name"' | cut -d"\"" -f4)
+				if [ "$DomoNewName" != "" ] ; then
+					DomoName=$(echo "$DomoNewName")
+				fi
 				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx&switchcmd=On&passcode=$DomoPIN"
-				sed -i -e 's/'"$arptableline"'/'"$idx	$mac	0	$DeviceName	$DeviceIP	ON"'/g' $DataDir/arp-table.dom
+				sed -i -e 's/'"$arptableline"'/'"$idx	$mac	0	$DeviceName	$DeviceIP	ON	$DomoName	$CurrentDateShort"'/g' $DataDir/arp-table.dom
 #				echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched ON" >> $LogDir/nwd.log.$CurrentDateYmd
 			fi
 			RetryCounter=0
@@ -163,21 +171,22 @@ else
 				fi
 				if [ $DeviceDetectStatus == "Off" ] ; then
 					echo "is $RetryCounter bigger then $RetryAttempts?"
+#					DomoName=$(cat $DataDir/DomoticzStatus.dat | grep -B 1 "\"idx\" : \"$idx\"" | grep '"Name"' | cut -d"\"" -f4)
 					if expr "$RetryCounter" '>' "$RetryAttempts" ; then 
 						echo "Device is reallly off"
 						# Switch in Domoticz OFF
 
 						curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx&switchcmd=Off&passcode=$DomoPIN"
-						sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName		Off"'/g' $DataDir/arp-table.dom
+						sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName		Off	$DomoName	$CurrentDateShort"'/g' $DataDir/arp-table.dom
 #						echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched OFF" >> $LogDir/nwd.log.$CurrentDateYmd						#reset retrycounter
 					else
 						echo "Will retry later"
 						RetryCounter=$((RetryCounter+1))
-						sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName	$ip	pending"'/g' $DataDir/arp-table.dom
+						sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName	$ip	pending	$DomoName	$CurrentDateShort"'/g' $DataDir/arp-table.dom
 					fi
 				fi
 			fi
-			# End of processing based on presence of IP in ARP-SCAN 
+W			# End of processing based on presence of IP in ARP-SCAN 
 		fi
 
 	fi
@@ -191,65 +200,68 @@ fi
 curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NWDScriptRunning&switchcmd=On&passcode=$DomoPIN"
 # End of NetWorkDetect-ARPSCAN
 
-#Make device list available online via domoitczurl/devices.txt
+#Make device list available online via domoticzurl/devices.txt
 cp /home/pi/domoticz/networkdetectz/data/arp-table.dom /home/pi/domoticz/www/devices.txt
 
-echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1>" > /home/pi/domoticz/www/devices.html
-echo "<tr><th>IDX</th><th>Name - $CurrentDateTime</th><th>Status</th><th>MAC</th><th colspan=3>IP</th></tr>"  >> /home/pi/domoticz/www/devices.html
+echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1>" > $DataDir/devices.html
+echo "<tr><th>IDX</th><th>Name - $CurrentDateTime</th><th>Status</th><th>MAC</th><th colspan=4>IP</th></tr>"  >> $DataDir/devices.html
+
+WriteHTMLline () {
+if [ "$1" != "" ] ; then
+# 1=arptableline
+# 2=statusto create lines for
+# 3=colour to give to the status
+#	echo "$arptableline"
+	status=$(echo "$1" | cut -f6)
+	if [ "$status" == "$2" ] ; then
+		idx=$(echo "$1" | cut -f1)
+		mac=$(echo "$1" | cut -f2)
+		RetryCounter=$(echo "$1" | cut -f3)
+		DeviceName=$(echo "$1" | cut -f4)
+		ip=$(echo "$1" | cut -f5)
+		#f6 = status
+		DomoName=$(echo "$1" | cut -f7)
+		LastChange=$(echo "$1" | cut -f8)
+
+		echo "<tr><td>$idx</td><td><font size=2>"  >> $DataDir/devices.html
+		if [ "$DomoName" != "" ] ; then
+			echo "$DomoName</font><br><font size=1>"  >> $DataDir/devices.html
+		fi
+		echo "$DeviceName</font></td>"  >> $DataDir/devices.html
+		echo "<td bgcolor=$3>"  >> $DataDir/devices.html
+		echo "<font size=2>$status</font><br><font size=1>$LastChange</font></td><td> $mac </td>"  >> $DataDir/devices.html
+		if [ "$ip" != "" ] ; then
+			echo "<td>$ip</td><td><a href=http://$ip>http</a></td><td><a href=ftp://$ip>ftp</a></td><td><a href=ssh://$ip>ssh</a></td>"  >> $DataDir/devices.html
+		else
+			echo "<td colspan=4></td>"  >> $DataDir/devices.html
+		fi
+		echo "</tr>" >> $DataDir/devices.html
+	fi
+fi
+}
 
 while read arptableline ; do
-if [ "$arptableline" != "" ] ; then
-#	echo "$arptableline"
-	status=$(echo "$arptableline" | cut -f6)
-	if [ "$status" != "Off" ] ; then
-		idx=$(echo "$arptableline" | cut -f1)
-		mac=$(echo "$arptableline" | cut -f2)
-#		RetryCounter=$(echo "$arptableline" | cut -f3)
-		DeviceName=$(echo "$arptableline" | cut -f4)
-		DomoName=$(cat $DataDir/DomoticzStatus.dat | grep -B 1 "\"idx\" : \"$idx\"" | grep '"Name"' | cut -d"\"" -f4)
-
-		ip=$(echo "$arptableline" | cut -f5)
-		echo "<tr><td>$idx</td><td>$DomoName<br><font size=1>$DeviceName</font></td><td bgcolor=lightgreen>$status</td><td>$mac</td>"  >> /home/pi/domoticz/www/devices.html
-		echo "<td>$ip</td><td><a href=http://$ip>http</a></td><td><a href=ssh://$ip>ssh</a></td>"  >> /home/pi/domoticz/www/devices.html
-		echo "</tr>" >> /home/pi/domoticz/www/devices.html
-	fi
-
-fi
+	WriteHTMLline "$arptableline" "ON" "springgreen"
 done < $DataDir/arp-table.dom
 
 while read arptableline ; do
-if [ "$arptableline" != "" ] ; then
-#	echo "$arptableline"
-	status=$(echo "$arptableline" | cut -f6)
-	if [ "$status" == "Off" ] ; then
-		idx=$(echo "$arptableline" | cut -f1)
-		mac=$(echo "$arptableline" | cut -f2)
-#		RetryCounter=$(echo "$arptableline" | cut -f3)
-		DeviceName=$(echo "$arptableline" | cut -f4)
-#		ip=$(echo "$arptableline" | cut -f5)
-		echo "<tr><td>$idx</td><td>$DeviceName</td><td>$status</td><td>$mac</td>"  >> /home/pi/domoticz/www/devices.html
-		echo "<td colspan=3></td>"  >> /home/pi/domoticz/www/devices.html
-		echo "</tr>" >> /home/pi/domoticz/www/devices.html
-	fi
-
-fi
+	WriteHTMLline "$arptableline" "pending" "aquamarine"
 done < $DataDir/arp-table.dom
 
+while read arptableline ; do
+	WriteHTMLline "$arptableline" "Off" "pink"
+done < $DataDir/arp-table.dom
 
-
-echo "</table></body></html>" >> /home/pi/domoticz/www/devices.html
-
+echo "</table></body></html>" >> $DataDir/devices.html
+cp $DataDir/devices.html $HTMLlocation
 
 #Make device list available for other scripts that require an IP address
 cp /home/pi/domoticz/networkdetectz/data/arp-scan.raw /home/pi/domoticz/scripts/arp-temp
-#Other scripts can be create like this"
+#Other scripts can be created like this"
 #	#!/bin/bash
 #	DEVICE_MAC='01:23:45:67:89:AB'
 #	DEVICE_IP=$(cat /home/pi/domoticz/scripts/arp-temp | grep "$DEVICE_MAC" | cut -f1)
 #	echo $DEVICE_IP
 
-
-
-
 # clean up old backups
-find $LogDir/* -mtime +$LogPeriod -type f -delete
+#find $LogDir/* -mtime +$LogPeriod -type f -delete
