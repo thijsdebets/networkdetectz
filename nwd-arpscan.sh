@@ -87,7 +87,7 @@ else
 				# Get IDX of the newly created sensor
 				NewDevIDX=""
 				NewDevIDX=$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')
-				echo "$NewDevIDX	$mac	0	$man	$ip	NEW	New Device	$CurrentDateShort" >> $DataDir/arp-table.dom
+				echo "$NewDevIDX	$mac	0	$man	$ip	ON	New Device	$CurrentDateShort" >> $DataDir/arp-table.dom
 
 				# switch on NewDeviceFound notifier in Domoticz:
 				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDeviceFoundIDX&switchcmd=On"
@@ -223,7 +223,7 @@ if [ "$1" != "" ] ; then
 		DomoName=$(echo "$1" | cut -f7)
 		LastChange=$(echo "$1" | cut -f8)
 
-		echo "<tr><td>$idx</td><td><font size=2>"  >> $DataDir/devices.html
+		echo "<tr><td bgcolor=$3>$idx</td><td><font size=2>"  >> $DataDir/devices.html
 		if [ "$DomoName" != "" ] ; then
 			echo "$DomoName</font><br><font size=1>"  >> $DataDir/devices.html
 		fi
