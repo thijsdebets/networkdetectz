@@ -171,7 +171,10 @@ else
 				fi
 				if [ $DeviceDetectStatus == "Off" ] ; then
 					echo "is $RetryCounter bigger then $RetryAttempts?"
-#					DomoName=$(cat $DataDir/DomoticzStatus.dat | grep -B 1 "\"idx\" : \"$idx\"" | grep '"Name"' | cut -d"\"" -f4)
+#					DomoName=$(cat $DataD6ir/DomoticzStatus.dat | grep -B 1 "\"idx\" : \"$idx\"" | grep '"Name"' | cut -d"\"" -f4)
+					if [[ "$DeviceName" == *"Apple"* ]] ; then
+						RetryAttempts=15
+					fi
 					if expr "$RetryCounter" '>' "$RetryAttempts" ; then 
 						echo "Device is reallly off"
 						# Switch in Domoticz OFF
@@ -201,10 +204,12 @@ curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type
 # End of NetWorkDetect-ARPSCAN
 
 #Make device list available online via domoticzurl/devices.txt
-cp /home/pi/domoticz/networkdetectz/data/arp-table.dom /home/pi/domoticz/www/devices.txt
+cp $DataDir/arp-table.dom /home/pi/domoticz/www/devices.txt
 
 echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1>" > $DataDir/devices.html
-echo "<tr><th>IDX</th><th>Name - $CurrentDateTime</th><th>Status</th><th>MAC</th><th colspan=4>IP</th></tr>"  >> $DataDir/devices.html
+echo "<tr><th>IDX</th><th>Name - $CurrentDateTime</th><th>Status</th><th>MAC</th><th>IP</th><th colspan=3><a href=tiles.html>device tiles</a></th></tr>"  >> $DataDir/devices.html
+echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1><tr><th colspan=5>$CurrentDateTime</th><th><a href=devices.html>device list</a></th></tr><tr>" > $DataDir/tiles.html
+blockcount=0
 
 WriteHTMLline () {
 if [ "$1" != "" ] ; then
@@ -214,6 +219,10 @@ if [ "$1" != "" ] ; then
 #	echo "$arptableline"
 	status=$(echo "$1" | cut -f6)
 	if [ "$status" == "$2" ] ; then
+		if (( $blockcount % 6 == 0 )) ; then
+			echo "</tr><tr>" >> $DataDir/tiles.html
+		fi
+		blockcount=$((blockcount+1))
 		idx=$(echo "$1" | cut -f1)
 		mac=$(echo "$1" | cut -f2)
 		RetryCounter=$(echo "$1" | cut -f3)
@@ -230,6 +239,7 @@ if [ "$1" != "" ] ; then
 		echo "$DeviceName</font></td>"  >> $DataDir/devices.html
 		echo "<td bgcolor=$3>"  >> $DataDir/devices.html
 		echo "<font size=2>$status</font><br><font size=1>$LastChange</font></td><td> $mac </td>"  >> $DataDir/devices.html
+		echo "<td valign=bottom align=center bgcolor=$3><font size=2><b>$DomoName</b><br><font size=1><i>$DeviceName</i><hr>$mac<br>$LastChange<br>$ip</font></td>"  >> $DataDir/tiles.html
 		if [ "$ip" != "" ] ; then
 			echo "<td>$ip</td><td><a href=http://$ip>http</a></td><td><a href=ftp://$ip>ftp</a></td><td><a href=ssh://$ip>ssh</a></td>"  >> $DataDir/devices.html
 		else
@@ -253,10 +263,12 @@ while read arptableline ; do
 done < $DataDir/arp-table.dom
 
 echo "</table></body></html>" >> $DataDir/devices.html
-cp $DataDir/devices.html $HTMLlocation
+cp $DataDir/devices.html $HTMLlocation/devices.html
+echo "</tr></table></body></html>" >> $DataDir/tiles.html
+cp $DataDir/tiles.html $HTMLlocation/tiles.html
 
 #Make device list available for other scripts that require an IP address
-cp /home/pi/domoticz/networkdetectz/data/arp-scan.raw /home/pi/domoticz/scripts/arp-temp
+cp $DataDir/arp-scan.raw /home/pi/domoticz/scripts/arp-temp
 #Other scripts can be created like this"
 #	#!/bin/bash
 #	DEVICE_MAC='01:23:45:67:89:AB'

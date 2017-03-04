@@ -13,4 +13,4 @@ DomoPIN='1234'
 HardwareIDX=99
 NewDevicesFoundIDX=999
 NWDScriptRunning=999
-HTMLlocation="/home/pi/domoticz/www/devices.html"
+HTMLlocation="/home/pi/domoticz/www/"
