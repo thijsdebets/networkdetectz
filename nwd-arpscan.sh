@@ -90,7 +90,7 @@ else
 				echo "$NewDevIDX	$mac	0	$man	$ip	ON	New Device	$CurrentDateShort" >> $DataDir/arp-table.dom
 
 				# switch on NewDeviceFound notifier in Domoticz:
-				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDeviceFoundIDX&switchcmd=On"
+				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevicesFoundIDX&switchcmd=On"
 		fi
 		fi
 	fi
@@ -173,7 +173,7 @@ else
 					echo "is $RetryCounter bigger then $RetryAttempts?"
 #					DomoName=$(cat $DataD6ir/DomoticzStatus.dat | grep -B 1 "\"idx\" : \"$idx\"" | grep '"Name"' | cut -d"\"" -f4)
 					if [[ "$DeviceName" == *"Apple"* ]] ; then
-						RetryAttempts=15
+						RetryAttempts=$RetryAppleDevices
 					fi
 					if expr "$RetryCounter" '>' "$RetryAttempts" ; then 
 						echo "Device is reallly off"
@@ -189,7 +189,7 @@ else
 					fi
 				fi
 			fi
-W			# End of processing based on presence of IP in ARP-SCAN 
+			# End of processing based on presence of IP in ARP-SCAN 
 		fi
 
 	fi
