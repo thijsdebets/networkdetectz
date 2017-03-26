@@ -2,6 +2,7 @@
 #version 2017-02-15
 
 RetryAttempts=3         # 3 = retry 4 times (5 minutes), 1 = retry 2 = 3 minutes
+RetryAppleDevices=20
 LogPeriod=5				# Keep logfiles for # days
 NetworkTopIP="192"		# used to filter the relevant items from arpscan results
 
