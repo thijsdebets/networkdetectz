@@ -70,6 +70,7 @@ else
 
 	echo "lets start"
 	# determine per device in the arp-scan if it exists. If it doesn't add it to Domoticz
+	if [ "$AutoAdd" == "YES" ] ; then
 	while read arpscanline ; do
 	if [ "$arpscanline" != "" ] ; then
 #		echo "Check for $arpscanline"
@@ -95,11 +96,12 @@ else
 		fi
 	fi
 	done < $DataDir/arp-scan.raw
+	fi
 
 
 	# Part 2: Determine and update device statusses
 
-	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX" | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $DataDir/DomoticzStatus.dat
+	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX," | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $DataDir/DomoticzStatus.dat
 	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "On"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.on
 #	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "Off"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
 
