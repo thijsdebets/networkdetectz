@@ -20,8 +20,8 @@ InstallDir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 #InstallDir=$(pwd)
 #pwd
 #echo "$InstallDir"
-DomoIP='127.0.0.1'		# Domoticz IP Address
-DomoPort='8080'			# Domoticz Port
+#DomoIP='127.0.0.1'		# Domoticz IP Address
+#DomoPort='8080'			# Domoticz Port
 
 #--- Update configuration ---#
 while read confline ; do
