@@ -38,6 +38,9 @@ source $InstallDir/nwd-config.own
 #--- Initiation ---#
 DataDir="$InstallDir/data"
 LogDir="$InstallDir/log"
+TmpDir="/var/tmp/nwd"
+[ ! -d "$DIR" ] && mkdir "$TmpDir"
+
 CurrentDateTime=$(date)
 CurrentDateYmd=$(date +"%Y%m%d")
 CurrentDateShort=$(date +"%H:%M %d%b%Y")
@@ -57,11 +60,14 @@ else
 	echo "Execute Arp-Scan"
 #	sudo arp-scan --localnet -timeout=5000 | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
 #	sudo arp-scan -l -r10 -g -R | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
-	sudo arp-scan -l -r10 -g -R | head -n-3 | tail -n+3 | sort > $DataDir/arp-scan.lst
+#	sudo arp-scan -l -r10 -g -R | head -n-3 | tail -n+3 | sort > $TmpDir/arp-scan.lst
+	sudo arp-scan -l -r10 -g -R | grep -ie '[0-9a-fA-F]\{2\}\(:[0-9a-fA-F]\{2\}\)\{5\}' | sort -u > $TmpDir/arp-scan.lst
+	echo " scan done" 
 	# intermediate is used to keep content of arp-scan.raw highly available
-	ArpLines=$(wc -l $DataDir/arp-scan.lst)
+#	ArpLines=$(wc -l $DataDir/arp-scan.lst)
+	ArpLines=$(wc -l $TmpDir/arp-scan.lst)
 	if expr "$ArpLines" '>=' "0" ; 	then
-		cp $DataDir/arp-scan.lst $DataDir/arp-scan.raw
+		cp $TmpDir/arp-scan.lst $TmpDir/arp-scan.raw
 	else
 		exit
 	fi
@@ -92,17 +98,19 @@ else
 
 				# switch On NewDeviceFound notifier in Domoticz:
 				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevicesFoundIDX&switchcmd=On"
+				cp $TmpDir/arp-scan.lst $TmpDir/arp-scan.lst.${CurrentDateYmd}
+
 		fi
 		fi
 	fi
-	done < $DataDir/arp-scan.raw
+	done < $TmpDir/arp-scan.raw
 	fi
 
 
 	# Part 2: Determine and update device statusses
 
-	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX," | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $DataDir/DomoticzStatus.dat
-	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "On"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.on
+	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX," | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $TmpDir/DomoticzStatus.dat
+	cat $TmpDir/DomoticzStatus.dat | grep -A 2 '"Data" : "On"' | grep '"idx"' | cut -d"\"" -f4 > $TmpDir/DomoticzStatus.on
 #	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "Off"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
 
 	while read arptableline ; do
@@ -118,7 +126,7 @@ else
 
 #	cat $DataDir/arp-table.dom | cut -f1 > $DataDir/arp-table.idx
 		# Check if the device is On in Domoticz
-		grep -x $idx $DataDir/DomoticzStatus.on
+		grep -x $idx $TmpDir/DomoticzStatus.on
 		if [ $? -eq 0 ] ; then
 			DeviceDomStatus="On"
 		else
@@ -129,7 +137,7 @@ else
 
 		# get ip address for device from arp-scan
 		DeviceIP=""
-		DeviceIP=$(cat $DataDir/arp-scan.raw | grep -m 1 "$mac" | cut -f1)
+		DeviceIP=$(cat $TmpDir/arp-scan.raw | grep -m 1 "$mac" | cut -f1)
 		if expr "$DeviceIP" '>' 0
 		then
 			DeviceDetectStatus="On"
@@ -138,8 +146,8 @@ else
 			else
 				echo "Device is turned On"
 				# Switch in Domoticz On
-				DeviceName=$(cat $DataDir/arp-scan.raw | grep "$mac" | cut -f3)
-				DomonewName=$(cat $DataDir/DomoticzStatus.dat | grep -B 1 "\"idx\" : \"$idx\"" | grep '"Name"' | cut -d"\"" -f4)
+				DeviceName=$(cat $TmpDir/arp-scan.raw | grep "$mac" | cut -f3)
+				DomonewName=$(cat $TmpDir/DomoticzStatus.dat | grep -B 1 "\"idx\" : \"$idx\"" | grep '"Name"' | cut -d"\"" -f4)
 				if [ "$DomonewName" != "" ] ; then
 					Domoname=$(echo "$DomonewName")
 				fi
@@ -209,9 +217,9 @@ curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type
 #Make device list available Online via domoticzurl/devices.txt
 cp $DataDir/arp-table.dom /home/pi/domoticz/www/devices.txt
 
-echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1>" > $DataDir/devices.html
-echo "<tr><th>IDX</th><th>Name - $CurrentDateTime</th><th>Status</th><th>MAC</th><th>IP</th><th colspan=3><a href=tiles.html>device tiles</a></th></tr>"  >> $DataDir/devices.html
-echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1><tr><th colspan=5>$CurrentDateTime</th><th><a href=devices.html>device list</a></th></tr><tr>" > $DataDir/tiles.html
+echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1>" > $TmpDir/devices.html
+echo "<tr><th>IDX</th><th>Name - $CurrentDateTime</th><th>Status</th><th>MAC</th><th>IP</th><th colspan=3><a href=tiles.html>device tiles</a></th></tr>"  >> $TmpDir/devices.html
+echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1><tr><th colspan=5>$CurrentDateTime</th><th><a href=devices.html>device list</a></th></tr><tr>" > $TmpDir/tiles.html
 blockcount=0
 
 WriteHTMLline () {
@@ -223,7 +231,7 @@ if [ "$1" != "" ] ; then
 	status=$(echo "$1" | cut -f6)
 	if [ "$status" == "$2" ] ; then
 		if (( $blockcount % 6 == 0 )) ; then
-			echo "</tr><tr>" >> $DataDir/tiles.html
+			echo "</tr><tr>" >> $TmpDir/tiles.html
 		fi
 		blockcount=$((blockcount+1))
 		idx=$(echo "$1" | cut -f1)
@@ -235,20 +243,20 @@ if [ "$1" != "" ] ; then
 		Domoname=$(echo "$1" | cut -f7)
 		LastChange=$(echo "$1" | cut -f8)
 
-		echo "<tr><td bgcolor=$3>$idx</td><td><font size=2>"  >> $DataDir/devices.html
+		echo "<tr><td bgcolor=$3>$idx</td><td><font size=2>"  >> $TmpDir/devices.html
 		if [ "$Domoname" != "" ] ; then
-			echo "$Domoname</font><br><font size=1>"  >> $DataDir/devices.html
+			echo "$Domoname</font><br><font size=1>"  >> $TmpDir/devices.html
 		fi
-		echo "$DeviceName</font></td>"  >> $DataDir/devices.html
-		echo "<td bgcolor=$3>"  >> $DataDir/devices.html
-		echo "<font size=2>$status</font><br><font size=1>$LastChange</font></td><td> $mac </td>"  >> $DataDir/devices.html
-		echo "<td valign=bottom align=center bgcolor=$3><font size=2><b>$Domoname</b><br><font size=1><i>$DeviceName</i><hr>$mac<br>$LastChange<br>$ip</font></td>"  >> $DataDir/tiles.html
+		echo "$DeviceName</font></td>"  >> $TmpDir/devices.html
+		echo "<td bgcolor=$3>"  >> $TmpDir/devices.html
+		echo "<font size=2>$status</font><br><font size=1>$LastChange</font></td><td> $mac </td>"  >> $TmpDir/devices.html
+		echo "<td valign=bottom align=center bgcolor=$3><font size=2><b>$Domoname</b><br><font size=1><i>$DeviceName</i><hr>$mac<br>$LastChange<br>$ip</font></td>"  >> $TmpDir/tiles.html
 		if [ "$ip" != "" ] ; then
-			echo "<td>$ip</td><td><a href=http://$ip>http</a></td><td><a href=ftp://$ip>ftp</a></td><td><a href=ssh://$ip>ssh</a></td>"  >> $DataDir/devices.html
+			echo "<td>$ip</td><td><a href=http://$ip>http</a></td><td><a href=ftp://$ip>ftp</a></td><td><a href=ssh://$ip>ssh</a></td>"  >> $TmpDir/devices.html
 		else
-			echo "<td colspan=4></td>"  >> $DataDir/devices.html
+			echo "<td colspan=4></td>"  >> $TmpDir/devices.html
 		fi
-		echo "</tr>" >> $DataDir/devices.html
+		echo "</tr>" >> $TmpDir/devices.html
 	fi
 fi
 }
@@ -265,13 +273,13 @@ while read arptableline ; do
 	WriteHTMLline "$arptableline" "Off" "pink"
 done < $DataDir/arp-table.dom
 
-echo "</table></body></html>" >> $DataDir/devices.html
-cp $DataDir/devices.html $HTMLlocation/devices.html
-echo "</tr></table></body></html>" >> $DataDir/tiles.html
-cp $DataDir/tiles.html $HTMLlocation/tiles.html
+echo "</table></body></html>" >> $TmpDir/devices.html
+cp $TmpDir/devices.html $HTMLlocation/devices.html
+echo "</tr></table></body></html>" >> $TmpDir/tiles.html
+cp $TmpDir/tiles.html $HTMLlocation/tiles.html
 
 #Make device list available for other scripts that require an IP address
-cp $DataDir/arp-scan.raw /home/pi/domoticz/scripts/arp-temp
+cp $TmpDir/arp-scan.raw /home/pi/domoticz/scripts/arp-temp
 #Other scripts can be created like this"
 #	#!/bin/bash
 #	DEVICE_MAC='01:23:45:67:89:AB'
