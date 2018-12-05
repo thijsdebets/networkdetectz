@@ -61,12 +61,19 @@ writesetting "NWDScriptRunning" "${NWDScriptRunning}"
 
 
 #todo
-
-
-
 #run from crontab, dont use sudo crontab:
 #crontab -e
 #*/1 * * * * /home/pi/domoticz/scripts/arp-detect.sh >> /dev/null 2>&1
+
+if [ "$( crontab -l | grep 'nwd-arpscan.sh'  | grep -v '^#' )" == "" ] ; then 
+	echo "No entry yet"
+	(crontab -l 2>/dev/null; echo "*/1 * * * * sleep $(expr $RANDOM \% 20); /home/pi/domoticz/networkdetectz/nwd-arpscan.sh >> /dev/null 2>&1") | crontab -
+else
+    echo "entry already found" 
+fi
+ echo "Added scheduled entry to crontab: " 
+crontab -l 
+
 
 # add to sudo crontab
 #sudo crontab -e
