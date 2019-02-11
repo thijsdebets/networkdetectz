@@ -51,10 +51,14 @@ umask 000
 
 # Check if Domoticz is Online to continue, else suspend
 echo "Check Domoticz status"
-DomoticzStatus=$(curl -s "http://$DomoIP:$DomoPort/json.htm?type=command&param=getSunRiseSet" | grep "\"status\" : \"OK\"")
-if [ -z "$DomoticzStatus" ] ; then
-	echo "Domoticz is offline. Retry later"
+if [ "${UseDomotiz}" == " YES" ] ; then
+	DomoticzStatus=$(curl -s "http://$DomoIP:$DomoPort/json.htm?type=command&param=getSunRiseSet" | grep "\"status\" : \"OK\"")
 else
+	DomoticzStatus=""
+fi
+#if [ -z "$DomoticzStatus" ] ; then
+#	echo "Skipping Domoticz"
+#else
 	# Part 1: Execute ARP-SCAN and detect devices
 	# Get list of available network devices in local file
 	echo "Execute Arp-Scan"
@@ -76,7 +80,6 @@ else
 
 	echo "lets start"
 	# determine per device in the arp-scan if it exists. If it doesn't add it to Domoticz
-	if [ "$AutoAdd" == "YES" ] ; then
 	while read arpscanline ; do
 	if [ "$arpscanline" != "" ] ; then
 #		echo "Check for $arpscanline"
@@ -89,28 +92,38 @@ else
 		if [ "$size" == "17" ] ; then
 			echo "new device found"
 			#add mac to arp-table
-				curl -G "$DomoIP:$DomoPort/json.htm" --data "type=createvirtualsensor" --data "idx=$HardwareIDX" --data-urlencode "sensorname=New Device By $man"  --data "sensortype=6"
-				echo "$createdevice"
+			if [ -z "$DomoticzStatus" ] ; then
+				echo "Skipping Domoticz"
+			else
+				if [ "$AutoAdd" == "YES" ] ; then
+					curl -G "$DomoIP:$DomoPort/json.htm" --data "type=createvirtualsensor" --data "idx=$HardwareIDX" --data-urlencode "sensorname=New Device By $man"  --data "sensortype=6"
+					echo "$createdevice"
 				# Get IDX of the newly created sensor
-				NewDevIDX=""
-				NewDevIDX=$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')
-				echo "$NewDevIDX	$mac	0	$man	$ip	On	New Device	$CurrentDateShort" >> $DataDir/arp-table.dom
+					NewDevIDX=""
+					NewDevIDX=$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')
+					# switch On NewDeviceFound notifier in Domoticz:
+					curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevicesFoundIDX&switchcmd=On"
+				fi
+			fi
+			echo "$NewDevIDX	$mac	0	$man	$ip	On	New Device	$CurrentDateShort" >> $DataDir/arp-table.dom
 
-				# switch On NewDeviceFound notifier in Domoticz:
-				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevicesFoundIDX&switchcmd=On"
-				cp $TmpDir/arp-scan.lst $TmpDir/arp-scan.lst.${CurrentDateYmd}
+			cp $TmpDir/arp-scan.lst $TmpDir/arp-scan.lst.${CurrentDateYmd}
 
 		fi
 		fi
 	fi
 	done < $TmpDir/arp-scan.raw
-	fi
+#	fi
 
 
 	# Part 2: Determine and update device statusses
 
-	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX," | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $TmpDir/DomoticzStatus.dat
-	cat $TmpDir/DomoticzStatus.dat | grep -A 2 '"Data" : "On"' | grep '"idx"' | cut -d"\"" -f4 > $TmpDir/DomoticzStatus.on
+	if [ -z "$DomoticzStatus" ] ; then
+		echo "Skipping Domoticz"
+	else
+		curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX," | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $TmpDir/DomoticzStatus.dat
+		cat $TmpDir/DomoticzStatus.dat | grep -A 2 '"Data" : "On"' | grep '"idx"' | cut -d"\"" -f4 > $TmpDir/DomoticzStatus.on
+	fi
 #	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "Off"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
 
 	while read arptableline ; do
@@ -126,12 +139,16 @@ else
 
 #	cat $DataDir/arp-table.dom | cut -f1 > $DataDir/arp-table.idx
 		# Check if the device is On in Domoticz
+	if [ -z "$DomoticzStatus" ] ; then
+		echo DeviceDomStatus=${arpStatus}
+	else
 		grep -x $idx $TmpDir/DomoticzStatus.on
 		if [ $? -eq 0 ] ; then
 			DeviceDomStatus="On"
 		else
 			DeviceDomStatus="Off"
 		fi
+	fi
 
 		echo "$CurrentDateTime Status of $mac - $idx - $RetryCounter - $DeviceName in Domoticz is $DeviceDomStatus and $arpStatus in NWD"
 
@@ -151,7 +168,11 @@ else
 				if [ "$DomonewName" != "" ] ; then
 					Domoname=$(echo "$DomonewName")
 				fi
-				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx&switchcmd=On&passcode=$DomoPIN"
+				if [ -z "$DomoticzStatus" ] ; then
+					echo "Skipping Domoticz"
+				else
+					curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx&switchcmd=On&passcode=$DomoPIN"
+				fi
 				sed -i -e 's/'"$arptableline"'/'"$idx	$mac	0	$DeviceName	$DeviceIP	On	$Domoname	$CurrentDateShort"'/g' $DataDir/arp-table.dom
 #				echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched On" >> $LogDir/nwd.log.$CurrentDateYmd
 			fi
@@ -189,7 +210,11 @@ else
 						echo "Device is reallly off"
 						# Switch in Domoticz OFF
 
-						curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx&switchcmd=Off&passcode=$DomoPIN"
+						if [ -z "$DomoticzStatus" ] ; then
+							echo "Skipping Domoticz"
+						else
+							curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx&switchcmd=Off&passcode=$DomoPIN"
+						fi
 						sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName		Off	$Domoname	$CurrentDateShort"'/g' $DataDir/arp-table.dom
 #						echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched OFF" >> $LogDir/nwd.log.$CurrentDateYmd						#reset retrycounter
 					else
@@ -207,15 +232,21 @@ else
 
 	# end of 'if domoticz is available'
 
-fi
+#fi
 
 #Let Domoticz know that the script has run
-echo "Let Domoticz know that the script has run"
-curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NWDScriptRunning&switchcmd=On&passcode=$DomoPIN"
-# End of NetWorkDetect-ARPSCAN
+if [ -z "$DomoticzStatus" ] ; then
+	echo "Skipping Domoticz"
+else
 
-#Make device list available Online via domoticzurl/devices.txt
-cp $DataDir/arp-table.dom /home/pi/domoticz/www/devices.txt
+	echo "Let Domoticz know that the script has run"
+	curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NWDScriptRunning&switchcmd=On&passcode=$DomoPIN"
+
+	# End of NetWorkDetect-ARPSCAN
+
+	#Make device list available Online via domoticzurl/devices.txt
+	cp $DataDir/arp-table.dom /home/pi/domoticz/www/devices.txt
+fi
 
 echo "<html><head><title>Domoticz Network Devices</title><META HTTP-EQUIV=refresh CONTENT=60></head><body><table border=1 cellpadding=1>" > $TmpDir/devices.html
 echo "<tr><th>IDX</th><th>Name - $CurrentDateTime</th><th>Status</th><th>MAC</th><th>IP</th><th colspan=3><a href=tiles.html>device tiles</a></th></tr>"  >> $TmpDir/devices.html
@@ -279,11 +310,12 @@ echo "</tr></table></body></html>" >> $TmpDir/tiles.html
 cp $TmpDir/tiles.html $HTMLlocation/tiles.html
 
 #Make device list available for other scripts that require an IP address
-cp $TmpDir/arp-scan.raw /home/pi/domoticz/scripts/arp-temp
+#cp $TmpDir/arp-scan.raw /home/pi/domoticz/scripts/arp-temp
+cp $TmpDir/arp-scan.raw $TmpDir/arplist.txt
 #Other scripts can be created like this"
 #	#!/bin/bash
 #	DEVICE_MAC='01:23:45:67:89:AB'
-#	DEVICE_IP=$(cat /home/pi/domoticz/scripts/arp-temp | grep "$DEVICE_MAC" | cut -f1)
+#	DEVICE_IP=$(cat TMPDIR/arplist.txt | grep "$DEVICE_MAC" | cut -f1)
 #	echo $DEVICE_IP
 
 # clean up old backups

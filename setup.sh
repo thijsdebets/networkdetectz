@@ -7,6 +7,10 @@ writesetting () {
 		echo "${1}=${2}" >> nwd-config.own
 }
 
+mkdir ${InstallDir}/data
+mkdir ${InstallDIr}/log
+mkdir /var/tmp/nwd
+
 
 echo "Lets set up NWD"
 echo " First we'll install arpscan, please confirm:" 
@@ -16,10 +20,6 @@ echo " Detecting Domoticz"
 if [ "$( sudo service domoticz status | grep -i 'Home Automation System' )" != "" ] ; then 
 	echo "Domoticz detected, using Domoticz (UseDomoticz=YES)" 
 	writesetting "UseDomoticz" "YES"
-else
-	echo "Domoticz NOT detected (UseDomoticz=NO)" 
-	writesetting "UseDomoticz" "NO"
-fi
 
 
 
@@ -57,6 +57,10 @@ writesetting "NewDevicesFoundIDX" "${NewDevicesFoundIDX}"
 NWDScriptRunning=$( curl -m 10 -G "http://${DomoIP}:${DomoPort}/json.htm" --data "type=createvirtualsensor" --data "idx=$HardwareIDX" --data-urlencode "sensorname=NWDScriptRunning"  --data "sensortype=6"  | tr ',' '\n' | grep idx | cut -d'"' -f4 )
 writesetting "NWDScriptRunning" "${NWDScriptRunning}" 
 
+else
+	echo "Domoticz NOT detected (UseDomoticz=NO)" 
+	writesetting "UseDomoticz" "NO"
+fi
 
 
 
@@ -67,7 +71,7 @@ writesetting "NWDScriptRunning" "${NWDScriptRunning}"
 
 if [ "$( crontab -l | grep 'nwd-arpscan.sh'  | grep -v '^#' )" == "" ] ; then 
 	echo "No entry yet"
-	(crontab -l 2>/dev/null; echo "*/1 * * * * sleep $(expr $RANDOM \% 20); /home/pi/domoticz/networkdetectz/nwd-arpscan.sh >> /dev/null 2>&1") | crontab -
+	(crontab -l 2>/dev/null; echo "*/1 * * * * sleep 15 ; ${InstallDir}/nwd-arpscan.sh >> /dev/null 2>&1" ) | crontab -
 else
     echo "entry already found" 
 fi
