@@ -4,10 +4,11 @@ logFile
 
 nic
 - mac
-- manufacturer
 - nicType (lan/wifi/bt)
 - timoutPeriod 
 - deviceId
+- manufacturer
+- description
 =changeType
 +createNic
 +addToDeviceId
@@ -28,11 +29,12 @@ device
 deviceStatus
 - id
 - status
-- lastSeen
+- name
 
 external
 - system (domoticz)
 - identification
+- deviceid
 
 externalConfig
 - protocol (http/https)

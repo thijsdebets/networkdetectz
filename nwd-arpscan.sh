@@ -11,6 +11,13 @@
 #@monthly     cd /usr/share/arp-scan/ && get-oui
 #@monthly     cd /usr/share/arp-scan/ && get-iab
 
+#ps -ef | grep nwd-arpscan | grep -v grep | wc -l
+#instances=$( ps -ef | grep nwd-arpscan | grep -v grep | wc -l )
+#if [ "${instances}" -gt "2" ] ; then 
+#	echo "Already ${instances} running"
+#	exit
+#fi
+
 
 #configuration file for Domoticz NetworkDetectz
 echo "Read configuration"
@@ -44,6 +51,7 @@ TmpDir="/var/tmp/nwd"
 CurrentDateTime=$(date)
 CurrentDateYmd=$(date +"%Y%m%d")
 CurrentDateShort=$(date +"%H:%M %d%b%Y")
+CurrentDateSeconds=$(date +%s)
 umask 000
 
 #source $InstallDir/nwd-functions
@@ -61,7 +69,8 @@ else
 #	sudo arp-scan --localnet -timeout=5000 | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
 #	sudo arp-scan -l -r10 -g -R | grep $NetworkTopIP | grep -v "DUP" | grep -v "hosts"| grep -v "kernel" | sort > $DataDir/arp-scan.lst
 #	sudo arp-scan -l -r10 -g -R | head -n-3 | tail -n+3 | sort > $TmpDir/arp-scan.lst
-	sudo arp-scan -l -r10 -g -R | grep -ie '[0-9a-fA-F]\{2\}\(:[0-9a-fA-F]\{2\}\)\{5\}' | sort -u > $TmpDir/arp-scan.lst
+#	sudo arp-scan -l -r10 -g -R | grep -ie '[0-9a-fA-F]\{2\}\(:[0-9a-fA-F]\{2\}\)\{5\}' | sort -u > $TmpDir/arp-scan.lst
+	sudo arp-scan -l -r5 -g -R | grep -ie '[0-9a-fA-F]\{2\}\(:[0-9a-fA-F]\{2\}\)\{5\}' | sort -u > $TmpDir/arp-scan.lst
 	echo " scan done" 
 	# intermediate is used to keep content of arp-scan.raw highly available
 #	ArpLines=$(wc -l $DataDir/arp-scan.lst)
@@ -94,7 +103,7 @@ else
 				# Get IDX of the newly created sensor
 				NewDevIDX=""
 				NewDevIDX=$(curl -s "$DomoIP:$DomoPort/json.htm?type=devices&filter=all" | grep "idx" | cut -d"\"" -f4 | sort -g | sed '1,${$!d}')
-				echo "$NewDevIDX	$mac	0	$man	$ip	On	New Device	$CurrentDateShort" >> $DataDir/arp-table.dom
+				echo "$NewDevIDX	$mac	0	$man	$ip	On	New Device	${CurrentDateShort}	${CurrentDateSeconds}" >> $DataDir/arp-table.dom
 
 				# switch On NewDeviceFound notifier in Domoticz:
 				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$NewDevicesFoundIDX&switchcmd=On"
@@ -109,7 +118,13 @@ else
 
 	# Part 2: Determine and update device statusses
 
-	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX," | grep -A 39 '"Data" : "Off"\|"Data" : "On"' | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $TmpDir/DomoticzStatus.dat
+	curl -s "http://$DomoIP:$DomoPort/json.htm?type=devices&filter=Dummy&used=true&order=HardwareID" | grep  '"idx"\|"Name"\|HardwareID"\|"Data"' | grep -B1 -A2 "\"HardwareID\" : ${HardwareIDX}," | grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"' > $TmpDir/DomoticzStatus.dat
+
+#| grep -B 4 -A 35 "\"HardwareID\" : $HardwareIDX," 
+#| grep -A 39 '"Data" : "Off"\|"Data" : "On"' 
+#| grep  '"Data" : "Off"\|"Data" : "On"\|"idx"\|"Name"'
+# > $TmpDir/DomoticzStatus.dat
+
 	cat $TmpDir/DomoticzStatus.dat | grep -A 2 '"Data" : "On"' | grep '"idx"' | cut -d"\"" -f4 > $TmpDir/DomoticzStatus.on
 #	cat $DataDir/DomoticzStatus.dat | grep -A 2 '"Data" : "Off"' | grep '"idx"' | cut -d"\"" -f4 > $DataDir/DomoticzStatus.off
 
@@ -152,7 +167,7 @@ else
 					Domoname=$(echo "$DomonewName")
 				fi
 				curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx&switchcmd=On&passcode=$DomoPIN"
-				sed -i -e 's/'"$arptableline"'/'"$idx	$mac	0	$DeviceName	$DeviceIP	On	$Domoname	$CurrentDateShort"'/g' $DataDir/arp-table.dom
+				sed -i -e 's/'"$arptableline"'/'"$idx	$mac	0	$DeviceName	$DeviceIP	On	$Domoname	${CurrentDateShort}	${CurrentDateSeconds}"'/g' $DataDir/arp-table.dom
 #				echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched On" >> $LogDir/nwd.log.$CurrentDateYmd
 			fi
 			RetryCounter=0
@@ -190,12 +205,12 @@ else
 						# Switch in Domoticz OFF
 
 						curl -s -i -H "Accept: application/json" "http://$DomoIP:$DomoPort/json.htm?type=command&param=switchlight&idx=$idx&switchcmd=Off&passcode=$DomoPIN"
-						sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName		Off	$Domoname	$CurrentDateShort"'/g' $DataDir/arp-table.dom
+						sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName		Off	$Domoname	${CurrentDateShort}	${CurrentDateSeconds}"'/g' $DataDir/arp-table.dom
 #						echo "$CurrentDateTime	${DomMAC[$idx]} - ${DomIDX[$idx]} - ${DomCnt[$idx]} - ${DomName[$idx]} (DOM-Name: ${DeviceName[$idx]} ) switched OFF" >> $LogDir/nwd.log.$CurrentDateYmd						#reset retrycounter
 					else
 						echo "Will retry later"
 						RetryCounter=$((RetryCounter+1))
-						sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName	$ip	pending	$Domoname	$CurrentDateShort"'/g' $DataDir/arp-table.dom
+						sed -i -e 's/'"$arptableline"'/'"$idx	$mac	$RetryCounter	$DeviceName	$ip	pending	$Domoname	${CurrentDateShort}	${CurrentDateSeconds}"'/g' $DataDir/arp-table.dom
 					fi
 				fi
 			fi
@@ -242,6 +257,7 @@ if [ "$1" != "" ] ; then
 		#f6 = status
 		Domoname=$(echo "$1" | cut -f7)
 		LastChange=$(echo "$1" | cut -f8)
+		LastSeen=$(echo "$1" | cut -f9)
 
 		echo "<tr><td bgcolor=$3>$idx</td><td><font size=2>"  >> $TmpDir/devices.html
 		if [ "$Domoname" != "" ] ; then
